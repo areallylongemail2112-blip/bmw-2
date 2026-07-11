@@ -1,0 +1,22 @@
+<resources>
+    <color name="bmw_blue">@color/primary</color>
+    <color name="primary">#FF1C69D4</color>
+    <color name="primary_dark">#FF0D47A1</color>
+    <color name="on_primary">#FFFFFFFF</color>
+
+    <color name="background">#FFF4F6F9</color>
+    <color name="surface">#FFFFFFFF</color>
+    <color name="on_surface">#FF11171F</color>
+    <color name="on_surface_muted">#FF61708A</color>
+    <color name="outline">#FFDCE2EC</color>
+
+    <color name="warning_bg">#FFFFF3E0</color>
+    <color name="warning_text">#FF8A5300</color>
+
+    <color name="status_connected">#FF2E7D32</color>
+    <color name="status_connecting">#FFB26A00</color>
+    <color name="status_error">#FFC62828</color>
+    <color name="status_disconnected">#FF78849A</color>
+
+    <color name="ic_launcher_background">#FF1C69D4</color>
+</resources>

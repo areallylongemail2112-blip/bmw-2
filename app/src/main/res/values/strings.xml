@@ -1,0 +1,10 @@
+<resources>
+    <string name="app_name">BMW F10 Coding</string>
+    <string name="home_title">Select a Module</string>
+    <string name="home_subtitle">BMW F10 (5 Series) coding assistant</string>
+    <string name="connection_title">Connection</string>
+    <string name="demo_mode">Demo Mode</string>
+    <string name="scan_ble">Scan for BLE adapters</string>
+    <string name="disconnect">Disconnect</string>
+    <string name="apply_coding">Apply coding</string>
+</resources>
