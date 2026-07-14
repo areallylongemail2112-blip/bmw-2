@@ -8,6 +8,7 @@ import android.bluetooth.BluetoothGattCharacteristic
 import android.bluetooth.BluetoothGattDescriptor
 import android.bluetooth.BluetoothProfile
 import android.content.Context
+import android.os.Build
 import com.bmwf10.coding.ecu.EcuException
 import com.bmwf10.coding.ecu.EcuTransport
 import java.util.UUID
@@ -82,10 +83,16 @@ class BleObdTransport(
             // failure) is signalled in onDescriptorWrite.
             val cccd = tx.getDescriptor(CCCD)
             if (cccd != null) {
-                @Suppress("DEPRECATION")
-                cccd.value = BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE
-                @Suppress("DEPRECATION")
-                g.writeDescriptor(cccd)
+                val enable = BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                    g.writeDescriptor(cccd, enable)
+                } else {
+                    @Suppress("DEPRECATION")
+                    run {
+                        cccd.value = enable
+                        g.writeDescriptor(cccd)
+                    }
+                }
             } else {
                 // No CCCD present: the link is up but notifications can't be enabled.
                 connected = true
@@ -98,11 +105,24 @@ class BleObdTransport(
             connectLatch?.countDown()
         }
 
+        // API 33+ delivers the value directly to this overload.
+        override fun onCharacteristicChanged(
+            g: BluetoothGatt, ch: BluetoothGattCharacteristic, value: ByteArray
+        ) = deliverLine(value)
+
+        // Pre-33 devices call this overload; read the (deprecated) value field.
         @Deprecated("Deprecated in Java")
         override fun onCharacteristicChanged(g: BluetoothGatt, ch: BluetoothGattCharacteristic) {
-            lastLine.set(String(ch.value ?: ByteArray(0)))
-            responseLatch?.countDown()
+            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) {
+                @Suppress("DEPRECATION")
+                deliverLine(ch.value ?: ByteArray(0))
+            }
         }
+    }
+
+    private fun deliverLine(bytes: ByteArray) {
+        lastLine.set(String(bytes))
+        responseLatch?.countDown()
     }
 
     override fun connect() {
@@ -130,8 +150,16 @@ class BleObdTransport(
         val ch = rx ?: throw EcuException("BLE not connected")
         val latch = CountDownLatch(1)
         responseLatch = latch
-        ch.value = (cmd + "\r").toByteArray()
-        gatt?.writeCharacteristic(ch)
+        val bytes = (cmd + "\r").toByteArray()
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            gatt?.writeCharacteristic(ch, bytes, ch.writeType)
+        } else {
+            @Suppress("DEPRECATION")
+            run {
+                ch.value = bytes
+                gatt?.writeCharacteristic(ch)
+            }
+        }
         latch.await(TIMEOUT_MS, TimeUnit.MILLISECONDS)
         return lastLine.get()
     }
