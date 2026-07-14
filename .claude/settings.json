@@ -1,0 +1,37 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "env": {
+    "ANDROID_HOME": "/opt/android-sdk",
+    "ANDROID_SDK_ROOT": "/opt/android-sdk"
+  },
+  "permissions": {
+    "allow": [
+      "Bash(./gradlew *)",
+      "Bash(gradle *)",
+      "Bash(adb *)",
+      "Bash(sdkmanager *)",
+      "Bash(avdmanager *)",
+      "Bash(emulator *)",
+      "Bash(/opt/android-sdk/platform-tools/adb *)",
+      "Bash(/opt/android-sdk/cmdline-tools/latest/bin/sdkmanager *)",
+      "Bash(/opt/android-sdk/cmdline-tools/latest/bin/avdmanager *)",
+      "Bash(/opt/android-sdk/emulator/emulator *)",
+      "Bash(bash .claude/android-sdk-setup.sh)",
+      "Bash(.claude/android-sdk-setup.sh)"
+    ]
+  },
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"${CLAUDE_PROJECT_DIR:-.}/.claude/android-sdk-local-properties.sh\"",
+            "timeout": 20,
+            "statusMessage": "Configuring Android SDK path…"
+          }
+        ]
+      }
+    ]
+  }
+}
