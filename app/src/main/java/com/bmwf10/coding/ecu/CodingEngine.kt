@@ -70,10 +70,16 @@ class CodingEngine(private val transport: EcuTransport, private val isDemo: Bool
         ValueType.INTEGER -> {
             val n = uiValue.toDoubleOrNull()
                 ?: throw EcuException("\"$uiValue\" is not a number")
-            (Math.round(n / map.scale).toInt() and map.bitMask)
+            // Shift the numeric value into the field's bit position before masking, so a
+            // field packed above bit 0 (e.g. bitMask 0xF0) is encoded correctly.
+            ((Math.round(n / map.scale).toInt() shl map.bitShift()) and map.bitMask)
         }
         ValueType.HEX -> Hex.parseByte(uiValue) and map.bitMask
     }
+
+    /** Number of low bits the field is shifted up by (0 for a bit-0-aligned or 0xFF mask). */
+    private fun EcuMap.bitShift(): Int =
+        if (bitMask == 0) 0 else Integer.numberOfTrailingZeros(bitMask)
 
     private fun decode(coding: CodingItem, map: EcuMap, raw: Int): String = when (coding.valueType) {
         ValueType.BOOLEAN, ValueType.ENUM -> {
@@ -81,7 +87,7 @@ class CodingEngine(private val transport: EcuTransport, private val isDemo: Bool
                 ?.firstOrNull { (Hex.parseByte(it.value) and map.bitMask) == raw }
                 ?.key ?: "0x%02X".format(raw)
         }
-        ValueType.INTEGER -> Math.round(raw * map.scale).toString()
+        ValueType.INTEGER -> Math.round((raw shr map.bitShift()) * map.scale).toString()
         ValueType.HEX -> "0x%02X".format(raw)
     }
 }

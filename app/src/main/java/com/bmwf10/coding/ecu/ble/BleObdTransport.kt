@@ -5,6 +5,7 @@ import android.bluetooth.BluetoothDevice
 import android.bluetooth.BluetoothGatt
 import android.bluetooth.BluetoothGattCallback
 import android.bluetooth.BluetoothGattCharacteristic
+import android.bluetooth.BluetoothGattDescriptor
 import android.bluetooth.BluetoothProfile
 import android.content.Context
 import com.bmwf10.coding.ecu.EcuException
@@ -37,16 +38,21 @@ class BleObdTransport(
         val NUS_SERVICE: UUID = UUID.fromString("6e400001-b5a3-f393-e0a9-e50e24dcca9e")
         val NUS_RX: UUID = UUID.fromString("6e400002-b5a3-f393-e0a9-e50e24dcca9e") // write
         val NUS_TX: UUID = UUID.fromString("6e400003-b5a3-f393-e0a9-e50e24dcca9e") // notify
+        // Client Characteristic Configuration Descriptor — must be written to actually
+        // subscribe to notifications; setCharacteristicNotification alone is not enough.
+        val CCCD: UUID = UUID.fromString("00002902-0000-1000-8000-00805f9b34fb")
         private const val TIMEOUT_MS = 6000L
     }
 
-    private var gatt: BluetoothGatt? = null
-    private var rx: BluetoothGattCharacteristic? = null
-    private var connected = false
+    // These are written on the caller/IO thread and read in GATT binder-thread callbacks
+    // (and vice-versa), so they need @Volatile to guarantee cross-thread visibility.
+    @Volatile private var gatt: BluetoothGatt? = null
+    @Volatile private var rx: BluetoothGattCharacteristic? = null
+    @Volatile private var connected = false
 
-    private var connectLatch: CountDownLatch? = null
+    @Volatile private var connectLatch: CountDownLatch? = null
     private val lastLine = AtomicReference<String>("")
-    private var responseLatch: CountDownLatch? = null
+    @Volatile private var responseLatch: CountDownLatch? = null
 
     override val isConnected: Boolean get() = connected
     override val supportsCoding: Boolean get() = false
@@ -65,10 +71,30 @@ class BleObdTransport(
             val service = g.getService(NUS_SERVICE)
             rx = service?.getCharacteristic(NUS_RX)
             val tx = service?.getCharacteristic(NUS_TX)
-            if (tx != null) {
-                g.setCharacteristicNotification(tx, true)
+            if (rx == null || tx == null) {
+                connected = false
+                connectLatch?.countDown()
+                return
             }
-            connected = rx != null && tx != null
+            g.setCharacteristicNotification(tx, true)
+            // Subscribe for real by writing the CCCD; without this the adapter never sends
+            // notifications and every read blocks the full timeout. Completion (success or
+            // failure) is signalled in onDescriptorWrite.
+            val cccd = tx.getDescriptor(CCCD)
+            if (cccd != null) {
+                @Suppress("DEPRECATION")
+                cccd.value = BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE
+                @Suppress("DEPRECATION")
+                g.writeDescriptor(cccd)
+            } else {
+                // No CCCD present: the link is up but notifications can't be enabled.
+                connected = true
+                connectLatch?.countDown()
+            }
+        }
+
+        override fun onDescriptorWrite(g: BluetoothGatt, descriptor: BluetoothGattDescriptor, status: Int) {
+            connected = rx != null
             connectLatch?.countDown()
         }
 
