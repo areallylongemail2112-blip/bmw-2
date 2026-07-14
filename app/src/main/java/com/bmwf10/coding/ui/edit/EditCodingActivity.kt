@@ -100,8 +100,13 @@ class EditCodingActivity : AppCompatActivity() {
             }
             ValueType.INTEGER -> {
                 binding.integerGroup.visibility = View.VISIBLE
-                val min = (c.min ?: 0).toFloat()
-                val max = (c.max ?: 100).toFloat()
+                // Normalize the range so the Material Slider never gets valueFrom >= valueTo
+                // (it throws) and coerceIn never gets an empty range (it throws) — guards a
+                // misconfigured coding whose min >= max.
+                val rawLo = c.min ?: 0
+                val rawHi = c.max ?: 100
+                val min = minOf(rawLo, rawHi).toFloat()
+                val max = (if (rawHi > rawLo) rawHi else rawLo + 1).toFloat()
                 binding.integerSlider.valueFrom = min
                 binding.integerSlider.valueTo = max
                 val cur = current.toFloatOrNull()?.coerceIn(min, max) ?: min

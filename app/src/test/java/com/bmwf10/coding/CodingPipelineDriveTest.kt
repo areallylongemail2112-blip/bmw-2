@@ -1,6 +1,8 @@
 package com.bmwf10.coding
 
+import com.bmwf10.coding.data.model.CodingItem
 import com.bmwf10.coding.data.model.CodingsData
+import com.bmwf10.coding.data.model.EcuMap
 import com.bmwf10.coding.data.model.ValueType
 import com.bmwf10.coding.ecu.CodingEngine
 import com.bmwf10.coding.ecu.DemoTransport
@@ -88,6 +90,21 @@ class CodingPipelineDriveTest {
         catch (e: Exception) { "blocked: ${e.message?.take(60)}" }
         println("GATE     unverified map on hardware -> $blocked")
         assertTrue(blocked.startsWith("blocked"))
+
+        // 7) Sub-byte INTEGER field (bitMask 0xF0): value must be shifted into the high
+        //    nibble on write and shifted back on read (regression guard for review #5).
+        val subByte = CodingItem(
+            id = "test_subbyte", moduleId = "frm", name = "High-nibble Field",
+            description = "", longDescription = "", valueType = ValueType.INTEGER,
+            defaultValue = "0", safeDefault = "0", min = 0, max = 15,
+            ecuMap = EcuMap(dataIdentifier = 0x9999, byteOffset = 0, bitMask = 0xF0, verified = false)
+        )
+        val sbByte = engine.applyCoding(module("frm"), subByte, "5")
+        val sbRead = engine.readCoding(module("frm"), subByte)
+        println("SHIFT    high-nibble int (mask 0xF0) value 5 -> wrote 0x%02X -> reads=%s"
+            .format(sbByte.toInt() and 0xFF, sbRead))
+        assertEquals(0x50, sbByte.toInt() and 0xFF)
+        assertEquals("5", sbRead)
 
         println("=== All coding-pipeline drives passed ===")
         transport.disconnect()
