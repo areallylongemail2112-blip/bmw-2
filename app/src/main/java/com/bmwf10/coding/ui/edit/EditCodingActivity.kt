@@ -61,6 +61,9 @@ class EditCodingActivity : AppCompatActivity() {
         binding.toolbar.title = c.name
         binding.longDescription.text = c.longDescription
         binding.safeInfo.text = buildSafeInfo(c)
+        // Initialize the current-value label here too: currentValue is set before the
+        // coding, so its observer already fired (with coding still null) and skipped it.
+        binding.currentValue.text = c.displayValue(viewModel.currentValue.value ?: c.defaultValue)
 
         // Warning banner for irreversible / flagged codings.
         val warn = c.warning ?: if (c.irreversible)

@@ -28,6 +28,14 @@ object Doip {
     /** Tester (client) source address. 0x0E80 is the conventional external-tester address. */
     const val TESTER_ADDRESS = 0x0E80
 
+    /**
+     * Upper bound on a single DoIP payload we will allocate from an on-wire length field.
+     * Our largest real payloads (routing activation, coding blocks) are well under 64 KiB;
+     * 1 MiB is a generous ceiling that still rejects a corrupt/hostile length before it can
+     * trigger a NegativeArraySizeException or an OutOfMemoryError.
+     */
+    const val MAX_PAYLOAD_LEN = 1 shl 20
+
     private fun header(payloadType: Int, payloadLen: Int): ByteArray = byteArrayOf(
         PROTOCOL_VERSION.toByte(),
         (PROTOCOL_VERSION.inv()).toByte(),
@@ -69,6 +77,9 @@ object Doip {
             ((head[5].toInt() and 0xFF) shl 16) or
             ((head[6].toInt() and 0xFF) shl 8) or
             (head[7].toInt() and 0xFF)
+        if (len < 0 || len > MAX_PAYLOAD_LEN) {
+            throw java.io.IOException("DoIP payload length out of range: $len")
+        }
         val payload = ByteArray(len)
         if (len > 0) din.readFully(payload)
         return Frame(payloadType, payload)
