@@ -17,3 +17,8 @@ app/build/
 
 # Kotlin
 .kotlin/
+
+# Signing (never commit)
+keystore.properties
+*.keystore
+*.jks
