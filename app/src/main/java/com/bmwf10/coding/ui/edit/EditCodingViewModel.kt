@@ -48,9 +48,12 @@ class EditCodingViewModel(app: Application) : AndroidViewModel(app) {
     fun load(codingId: String) {
         viewModelScope.launch {
             val c = repo.getCoding(codingId) ?: return@launch
-            _coding.value = c
             _module.value = repo.getModule(c.moduleId)
             _currentValue.value = repo.getValue(c)
+            // Set coding LAST: its observer triggers renderInput, which reads
+            // currentValue. If coding were set first, the control would render from
+            // defaultValue because currentValue would still be null.
+            _coding.value = c
         }
     }
 

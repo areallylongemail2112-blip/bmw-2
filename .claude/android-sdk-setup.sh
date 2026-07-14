@@ -29,7 +29,12 @@ else
   fi
   SDKM="$SDK/cmdline-tools/latest/bin/sdkmanager"
   yes | "$SDKM" --licenses >/dev/null 2>&1 || true
+  # `yes` gets SIGPIPE (exit 141) when sdkmanager stops reading; with pipefail that would
+  # abort the script even on a successful install. Disable pipefail for just this pipeline
+  # so the exit status reflects sdkmanager (last command); set -e still catches a real failure.
+  set +o pipefail
   yes | "$SDKM" "platform-tools" "platforms;android-34" "build-tools;34.0.0" >/dev/null
+  set -o pipefail
   echo "SDK install complete."
 fi
 

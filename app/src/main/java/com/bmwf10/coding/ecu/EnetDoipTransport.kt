@@ -36,26 +36,32 @@ class EnetDoipTransport(
     override val supportsCoding: Boolean get() = true
 
     override fun connect() {
-        val s = Socket()
-        s.tcpNoDelay = true
-        s.connect(InetSocketAddress(host, port), connectTimeoutMs)
-        s.soTimeout = readTimeoutMs
-        socket = s
-        input = s.getInputStream()
-        output = s.getOutputStream()
+        // Any failure after the socket is opened must close it, or a timeout/IO error
+        // during the handshake (e.g. the car is off and never answers) leaks the fd.
+        try {
+            val s = Socket()
+            s.tcpNoDelay = true
+            s.connect(InetSocketAddress(host, port), connectTimeoutMs)
+            s.soTimeout = readTimeoutMs
+            socket = s
+            input = s.getInputStream()
+            output = s.getOutputStream()
 
-        // DoIP routing activation handshake.
-        Doip.write(output!!, Doip.routingActivationRequest())
-        val res = Doip.readFrame(input!!)
-        if (res.payloadType != Doip.TYPE_ROUTING_ACTIVATION_RES) {
+            // DoIP routing activation handshake.
+            Doip.write(output!!, Doip.routingActivationRequest())
+            val res = Doip.readFrame(input!!)
+            if (res.payloadType != Doip.TYPE_ROUTING_ACTIVATION_RES) {
+                throw EcuException("DoIP routing activation failed (type 0x${res.payloadType.toString(16)})")
+            }
+            // Response code is the 5th byte of the routing-activation response payload; 0x10 = success.
+            val code = res.payload.getOrNull(4)?.toInt()?.and(0xFF) ?: -1
+            if (code != 0x10) {
+                throw EcuException("DoIP routing activation rejected (code 0x${code.toString(16)})")
+            }
+        } catch (e: Exception) {
             disconnect()
-            throw EcuException("DoIP routing activation failed (type 0x${res.payloadType.toString(16)})")
-        }
-        // Response code is the 5th byte of the routing-activation response payload; 0x10 = success.
-        val code = res.payload.getOrNull(4)?.toInt()?.and(0xFF) ?: -1
-        if (code != 0x10) {
-            disconnect()
-            throw EcuException("DoIP routing activation rejected (code 0x${code.toString(16)})")
+            throw if (e is EcuException) e
+            else EcuException("ENET connect to $host:$port failed: ${e.message}", e)
         }
     }
 
