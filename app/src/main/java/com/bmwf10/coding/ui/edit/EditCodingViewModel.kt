@@ -26,9 +26,19 @@ sealed class ApplyResult {
     object NeedsConnection : ApplyResult()
 }
 
+/** Coding definition plus the value used to initialize the edit controls. */
+data class EditUiModel(
+    val coding: CodingItem,
+    val module: Module?,
+    val currentValue: String
+)
+
 class EditCodingViewModel(app: Application) : AndroidViewModel(app) {
 
     private val repo = (app as BmwCodingApp).repository
+
+    private val _ui = MutableLiveData<EditUiModel?>()
+    val ui: LiveData<EditUiModel?> = _ui
 
     private val _coding = MutableLiveData<CodingItem?>()
     val coding: LiveData<CodingItem?> = _coding
@@ -48,9 +58,13 @@ class EditCodingViewModel(app: Application) : AndroidViewModel(app) {
     fun load(codingId: String) {
         viewModelScope.launch {
             val c = repo.getCoding(codingId) ?: return@launch
+            val m = repo.getModule(c.moduleId)
+            val value = repo.getValue(c)
             _coding.value = c
-            _module.value = repo.getModule(c.moduleId)
-            _currentValue.value = repo.getValue(c)
+            _module.value = m
+            _currentValue.value = value
+            // Publish atomically so the Activity can bind controls with the right value.
+            _ui.value = EditUiModel(c, m, value)
         }
     }
 
@@ -116,7 +130,10 @@ class EditCodingViewModel(app: Application) : AndroidViewModel(app) {
                     ApplyResult.Error(e.message ?: "Coding failed")
                 }
             }
-            if (outcome is ApplyResult.Success) _currentValue.value = newValue
+            if (outcome is ApplyResult.Success) {
+                _currentValue.value = newValue
+                _ui.value = EditUiModel(c, m, newValue)
+            }
             _busy.value = false
             _result.value = Event(outcome)
         }

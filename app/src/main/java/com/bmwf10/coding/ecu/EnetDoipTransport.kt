@@ -20,6 +20,10 @@ import java.net.Socket
  *
  * Multi-frame ISO-TP segmentation is handled by the DoIP gateway for us — over DoIP the UDS
  * payload is carried whole inside one diagnostic message, so we do not need CAN ISO-TP here.
+ *
+ * Note: many BMW modules also require SecurityAccess (0x27) before WDBI. That seed/key
+ * exchange is module-specific and not implemented here; writes that need it will fail with
+ * NRC 0x33 (security access denied).
  */
 class EnetDoipTransport(
     private val host: String,
@@ -37,25 +41,35 @@ class EnetDoipTransport(
 
     override fun connect() {
         val s = Socket()
-        s.tcpNoDelay = true
-        s.connect(InetSocketAddress(host, port), connectTimeoutMs)
-        s.soTimeout = readTimeoutMs
-        socket = s
-        input = s.getInputStream()
-        output = s.getOutputStream()
+        try {
+            s.tcpNoDelay = true
+            s.connect(InetSocketAddress(host, port), connectTimeoutMs)
+            s.soTimeout = readTimeoutMs
+            val inp = s.getInputStream()
+            val out = s.getOutputStream()
 
-        // DoIP routing activation handshake.
-        Doip.write(output!!, Doip.routingActivationRequest())
-        val res = Doip.readFrame(input!!)
-        if (res.payloadType != Doip.TYPE_ROUTING_ACTIVATION_RES) {
-            disconnect()
-            throw EcuException("DoIP routing activation failed (type 0x${res.payloadType.toString(16)})")
-        }
-        // Response code is the 5th byte of the routing-activation response payload; 0x10 = success.
-        val code = res.payload.getOrNull(4)?.toInt()?.and(0xFF) ?: -1
-        if (code != 0x10) {
-            disconnect()
-            throw EcuException("DoIP routing activation rejected (code 0x${code.toString(16)})")
+            // DoIP routing activation handshake.
+            Doip.write(out, Doip.routingActivationRequest())
+            val res = Doip.readFrame(inp)
+            if (res.payloadType != Doip.TYPE_ROUTING_ACTIVATION_RES) {
+                throw EcuException("DoIP routing activation failed (type 0x${res.payloadType.toString(16)})")
+            }
+            // Response code is the 5th byte of the routing-activation response payload; 0x10 = success.
+            val code = res.payload.getOrNull(4)?.toInt()?.and(0xFF) ?: -1
+            if (code != 0x10) {
+                throw EcuException("DoIP routing activation rejected (code 0x${code.toString(16)})")
+            }
+
+            socket = s
+            input = inp
+            output = out
+        } catch (e: Exception) {
+            runCatching { s.close() }
+            socket = null
+            input = null
+            output = null
+            if (e is EcuException) throw e
+            throw EcuException(e.message ?: "ENET connect failed", e)
         }
     }
 
@@ -97,19 +111,33 @@ class EnetDoipTransport(
         val inp = input ?: throw EcuException("Not connected")
         Doip.write(out, Doip.diagnosticMessage(Doip.TESTER_ADDRESS, diagAddress, uds))
 
+        var ignoredUnknown = 0
         while (true) {
             val frame = Doip.readFrame(inp)
             when (frame.payloadType) {
                 Doip.TYPE_DIAGNOSTIC_MESSAGE -> {
-                    val resp = Doip.udsFromDiagnostic(frame.payload)
+                    val resp = Doip.udsFromDiagnostic(frame.payload, expectedTarget = diagAddress)
                     // 0x7F xx 0x78 = response pending; keep waiting for the real answer.
                     if (Uds.negativeResponseCode(resp) == 0x78) continue
                     return resp
                 }
-                Doip.TYPE_DIAGNOSTIC_ACK -> continue // positive ack, real response follows
+                Doip.TYPE_DIAGNOSTIC_ACK -> {
+                    val ack = Doip.diagnosticAckCode(frame.payload)
+                    if (ack != 0) {
+                        throw EcuException("DoIP diagnostic ACK error code 0x${ack.toString(16)}")
+                    }
+                    continue // positive ack, real response follows
+                }
                 Doip.TYPE_DIAGNOSTIC_NACK ->
                     throw EcuException("DoIP diagnostic NACK from gateway")
-                else -> continue
+                else -> {
+                    ignoredUnknown++
+                    if (ignoredUnknown > 8) {
+                        throw EcuException(
+                            "DoIP stalled on unexpected payload type 0x${frame.payloadType.toString(16)}"
+                        )
+                    }
+                }
             }
         }
     }

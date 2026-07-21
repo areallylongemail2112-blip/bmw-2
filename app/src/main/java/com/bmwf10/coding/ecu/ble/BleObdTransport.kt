@@ -5,8 +5,10 @@ import android.bluetooth.BluetoothDevice
 import android.bluetooth.BluetoothGatt
 import android.bluetooth.BluetoothGattCallback
 import android.bluetooth.BluetoothGattCharacteristic
+import android.bluetooth.BluetoothGattDescriptor
 import android.bluetooth.BluetoothProfile
 import android.content.Context
+import android.os.Build
 import com.bmwf10.coding.ecu.EcuException
 import com.bmwf10.coding.ecu.EcuTransport
 import java.util.UUID
@@ -37,6 +39,7 @@ class BleObdTransport(
         val NUS_SERVICE: UUID = UUID.fromString("6e400001-b5a3-f393-e0a9-e50e24dcca9e")
         val NUS_RX: UUID = UUID.fromString("6e400002-b5a3-f393-e0a9-e50e24dcca9e") // write
         val NUS_TX: UUID = UUID.fromString("6e400003-b5a3-f393-e0a9-e50e24dcca9e") // notify
+        private val CCCD: UUID = UUID.fromString("00002902-0000-1000-8000-00805f9b34fb")
         private const val TIMEOUT_MS = 6000L
     }
 
@@ -45,6 +48,7 @@ class BleObdTransport(
     private var connected = false
 
     private var connectLatch: CountDownLatch? = null
+    private var cccdLatch: CountDownLatch? = null
     private val lastLine = AtomicReference<String>("")
     private var responseLatch: CountDownLatch? = null
 
@@ -65,16 +69,63 @@ class BleObdTransport(
             val service = g.getService(NUS_SERVICE)
             rx = service?.getCharacteristic(NUS_RX)
             val tx = service?.getCharacteristic(NUS_TX)
-            if (tx != null) {
-                g.setCharacteristicNotification(tx, true)
+            if (tx == null || rx == null) {
+                connected = false
+                connectLatch?.countDown()
+                return
             }
-            connected = rx != null && tx != null
-            connectLatch?.countDown()
+            g.setCharacteristicNotification(tx, true)
+            // Enable notifications via the Client Characteristic Configuration Descriptor.
+            // Without this write, many NUS adapters never deliver TX notifies.
+            val cccd = tx.getDescriptor(CCCD)
+            if (cccd == null) {
+                connected = false
+                connectLatch?.countDown()
+                return
+            }
+            val latch = CountDownLatch(1)
+            cccdLatch = latch
+            val enable = BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE
+            val wrote = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                g.writeDescriptor(cccd, enable) == BluetoothGatt.GATT_SUCCESS
+            } else {
+                @Suppress("DEPRECATION")
+                cccd.value = enable
+                @Suppress("DEPRECATION")
+                g.writeDescriptor(cccd)
+            }
+            if (!wrote) {
+                connected = false
+                connectLatch?.countDown()
+            }
+            // onDescriptorWrite finishes the connect handshake.
+        }
+
+        override fun onDescriptorWrite(
+            g: BluetoothGatt,
+            descriptor: BluetoothGattDescriptor,
+            status: Int
+        ) {
+            if (descriptor.uuid == CCCD) {
+                connected = status == BluetoothGatt.GATT_SUCCESS && rx != null
+                cccdLatch?.countDown()
+                connectLatch?.countDown()
+            }
         }
 
         @Deprecated("Deprecated in Java")
         override fun onCharacteristicChanged(g: BluetoothGatt, ch: BluetoothGattCharacteristic) {
+            @Suppress("DEPRECATION")
             lastLine.set(String(ch.value ?: ByteArray(0)))
+            responseLatch?.countDown()
+        }
+
+        override fun onCharacteristicChanged(
+            g: BluetoothGatt,
+            ch: BluetoothGattCharacteristic,
+            value: ByteArray
+        ) {
+            lastLine.set(String(value))
             responseLatch?.countDown()
         }
     }
@@ -102,10 +153,18 @@ class BleObdTransport(
     /** Sends one ELM327 command line and returns the adapter's reply (best-effort). */
     private fun sendLine(cmd: String): String {
         val ch = rx ?: throw EcuException("BLE not connected")
+        val g = gatt ?: throw EcuException("BLE not connected")
         val latch = CountDownLatch(1)
         responseLatch = latch
-        ch.value = (cmd + "\r").toByteArray()
-        gatt?.writeCharacteristic(ch)
+        val payload = (cmd + "\r").toByteArray()
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            g.writeCharacteristic(ch, payload, BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT)
+        } else {
+            @Suppress("DEPRECATION")
+            ch.value = payload
+            @Suppress("DEPRECATION")
+            g.writeCharacteristic(ch)
+        }
         latch.await(TIMEOUT_MS, TimeUnit.MILLISECONDS)
         return lastLine.get()
     }

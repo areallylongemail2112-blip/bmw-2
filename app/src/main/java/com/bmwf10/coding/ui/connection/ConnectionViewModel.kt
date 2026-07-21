@@ -5,8 +5,11 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.bmwf10.coding.BmwCodingApp
 import com.bmwf10.coding.ecu.ConnectionManager
+import com.bmwf10.coding.ecu.ConnectionStatus
 import com.bmwf10.coding.ecu.EcuTransport
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 class ConnectionViewModel(app: Application) : AndroidViewModel(app) {
 
@@ -17,8 +20,14 @@ class ConnectionViewModel(app: Application) : AndroidViewModel(app) {
     fun connectDemo() {
         viewModelScope.launch {
             ConnectionManager.connectDemo()
-            // Populate realistic "current values" so the app is fully usable with no car.
+            // Only seed when the demo link actually came up.
+            if (ConnectionManager.current.status != ConnectionStatus.CONNECTED) return@launch
             repo.seedDemoValues()
+            withContext(Dispatchers.IO) {
+                val modules = repo.getModules().associateBy { it.id }
+                val codings = modules.keys.flatMap { repo.getCodingsForModule(it) }
+                ConnectionManager.seedDemoTransport(modules, codings)
+            }
         }
     }
 

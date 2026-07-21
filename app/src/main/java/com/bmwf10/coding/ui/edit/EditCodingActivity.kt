@@ -11,6 +11,7 @@ import com.bmwf10.coding.databinding.ActivityEditCodingBinding
 import com.bmwf10.coding.ecu.ConnectionManager
 import com.bmwf10.coding.ui.common.ConnectionBadge
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
+import com.google.android.material.slider.Slider
 
 /** Screen 3 — edit a single coding value, with confirmation before writing to the ECU. */
 class EditCodingActivity : AppCompatActivity() {
@@ -18,6 +19,7 @@ class EditCodingActivity : AppCompatActivity() {
     private lateinit var binding: ActivityEditCodingBinding
     private val viewModel: EditCodingViewModel by viewModels()
     private lateinit var codingId: String
+    private var sliderListener: Slider.OnChangeListener? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -28,10 +30,7 @@ class EditCodingActivity : AppCompatActivity() {
         ConnectionBadge.bind(binding.connectionChip, this, this)
         binding.toolbar.setNavigationOnClickListener { finish() }
 
-        viewModel.coding.observe(this) { c -> if (c != null) bindCoding(c) }
-        viewModel.currentValue.observe(this) { v ->
-            viewModel.coding.value?.let { binding.currentValue.text = it.displayValue(v) }
-        }
+        viewModel.ui.observe(this) { model -> if (model != null) bindCoding(model) }
         viewModel.busy.observe(this) { busy ->
             binding.applyButton.isEnabled = !busy
             binding.progress.visibility = if (busy) View.VISIBLE else View.GONE
@@ -57,10 +56,12 @@ class EditCodingActivity : AppCompatActivity() {
         viewModel.load(codingId)
     }
 
-    private fun bindCoding(c: CodingItem) {
+    private fun bindCoding(model: EditUiModel) {
+        val c = model.coding
         binding.toolbar.title = c.name
         binding.longDescription.text = c.longDescription
         binding.safeInfo.text = buildSafeInfo(c)
+        binding.currentValue.text = c.displayValue(model.currentValue)
 
         // Warning banner for irreversible / flagged codings.
         val warn = c.warning ?: if (c.irreversible)
@@ -68,19 +69,22 @@ class EditCodingActivity : AppCompatActivity() {
         binding.warningBanner.visibility = if (warn != null) View.VISIBLE else View.GONE
         binding.warningText.text = warn ?: ""
 
-        renderInput(c)
+        renderInput(c, model.currentValue)
 
         binding.applyButton.setOnClickListener { confirmAndApply(c) }
     }
 
     /** Shows only the input control appropriate to the coding's value type. */
-    private fun renderInput(c: CodingItem) {
+    private fun renderInput(c: CodingItem, current: String) {
         binding.booleanSwitch.visibility = View.GONE
         binding.enumSpinner.visibility = View.GONE
         binding.integerGroup.visibility = View.GONE
         binding.hexInputLayout.visibility = View.GONE
 
-        val current = viewModel.currentValue.value ?: c.defaultValue
+        // Avoid stacking slider listeners across rebinds / rotation.
+        sliderListener?.let { binding.integerSlider.removeOnChangeListener(it) }
+        sliderListener = null
+
         when (c.valueType) {
             ValueType.BOOLEAN -> {
                 binding.booleanSwitch.visibility = View.VISIBLE
@@ -104,9 +108,11 @@ class EditCodingActivity : AppCompatActivity() {
                 val cur = current.toFloatOrNull()?.coerceIn(min, max) ?: min
                 binding.integerSlider.value = cur
                 binding.integerValueLabel.text = formatInt(c, cur.toInt())
-                binding.integerSlider.addOnChangeListener { _, value, _ ->
+                val listener = Slider.OnChangeListener { _, value, _ ->
                     binding.integerValueLabel.text = formatInt(c, value.toInt())
                 }
+                sliderListener = listener
+                binding.integerSlider.addOnChangeListener(listener)
             }
             ValueType.HEX -> {
                 binding.hexInputLayout.visibility = View.VISIBLE
