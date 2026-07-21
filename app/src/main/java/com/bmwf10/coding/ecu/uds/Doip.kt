@@ -1,6 +1,7 @@
 package com.bmwf10.coding.ecu.uds
 
 import java.io.DataInputStream
+import java.io.IOException
 import java.io.InputStream
 import java.io.OutputStream
 
@@ -18,6 +19,7 @@ import java.io.OutputStream
 object Doip {
     const val PROTOCOL_VERSION = 0x02
     const val PORT = 13400
+    private const val MAX_PAYLOAD_LENGTH = 1024 * 1024
 
     const val TYPE_ROUTING_ACTIVATION_REQ = 0x0005
     const val TYPE_ROUTING_ACTIVATION_RES = 0x0006
@@ -64,12 +66,20 @@ object Doip {
         val din = DataInputStream(input)
         val head = ByteArray(8)
         din.readFully(head)
+        val version = head[0].toInt() and 0xFF
+        val inverseVersion = head[1].toInt() and 0xFF
+        if ((version xor inverseVersion) != 0xFF) {
+            throw IOException("Invalid DoIP protocol version header")
+        }
         val payloadType = ((head[2].toInt() and 0xFF) shl 8) or (head[3].toInt() and 0xFF)
-        val len = ((head[4].toInt() and 0xFF) shl 24) or
-            ((head[5].toInt() and 0xFF) shl 16) or
-            ((head[6].toInt() and 0xFF) shl 8) or
-            (head[7].toInt() and 0xFF)
-        val payload = ByteArray(len)
+        val len = ((head[4].toLong() and 0xFF) shl 24) or
+            ((head[5].toLong() and 0xFF) shl 16) or
+            ((head[6].toLong() and 0xFF) shl 8) or
+            (head[7].toLong() and 0xFF)
+        if (len > MAX_PAYLOAD_LENGTH) {
+            throw IOException("DoIP payload length $len exceeds the supported limit")
+        }
+        val payload = ByteArray(len.toInt())
         if (len > 0) din.readFully(payload)
         return Frame(payloadType, payload)
     }
