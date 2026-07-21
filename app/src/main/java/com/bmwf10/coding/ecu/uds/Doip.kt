@@ -9,15 +9,18 @@ import java.io.OutputStream
  * an ENET cable to talk to F-series cars. A DoIP message is an 8-byte header followed by a
  * payload:
  *
- *   [protoVer][~protoVer][payloadType:2][payloadLen:4][payload...]
+ *   protoVer, ~protoVer, payloadType (2), payloadLen (4), payload...
  *
  * We use two payload types:
  *   0x0005 Routing activation request/response (the DoIP "handshake")
- *   0x8001 Diagnostic message: [sourceAddr:2][targetAddr:2][udsBytes...]
+ *   0x8001 Diagnostic message: sourceAddr (2), targetAddr (2), udsBytes...
  */
 object Doip {
     const val PROTOCOL_VERSION = 0x02
     const val PORT = 13400
+
+    /** Hard cap so a corrupted length field cannot force an OOM. */
+    const val MAX_PAYLOAD_LENGTH = 64 * 1024
 
     const val TYPE_ROUTING_ACTIVATION_REQ = 0x0005
     const val TYPE_ROUTING_ACTIVATION_RES = 0x0006
@@ -40,7 +43,7 @@ object Doip {
     )
 
     fun routingActivationRequest(sourceAddr: Int = TESTER_ADDRESS): ByteArray {
-        // payload: [sourceAddr:2][activationType:1][reserved:4]
+        // payload: sourceAddr (2), activationType (1), reserved (4)
         val payload = byteArrayOf(
             (sourceAddr shr 8).toByte(), sourceAddr.toByte(),
             0x00, // activation type: default
@@ -64,11 +67,21 @@ object Doip {
         val din = DataInputStream(input)
         val head = ByteArray(8)
         din.readFully(head)
+        val protoVer = head[0].toInt() and 0xFF
+        val inverse = head[1].toInt() and 0xFF
+        if (protoVer != PROTOCOL_VERSION || inverse != ((PROTOCOL_VERSION.inv()) and 0xFF)) {
+            throw IllegalArgumentException(
+                "Invalid DoIP protocol version 0x${protoVer.toString(16)}/~0x${inverse.toString(16)}"
+            )
+        }
         val payloadType = ((head[2].toInt() and 0xFF) shl 8) or (head[3].toInt() and 0xFF)
         val len = ((head[4].toInt() and 0xFF) shl 24) or
             ((head[5].toInt() and 0xFF) shl 16) or
             ((head[6].toInt() and 0xFF) shl 8) or
             (head[7].toInt() and 0xFF)
+        if (len < 0 || len > MAX_PAYLOAD_LENGTH) {
+            throw IllegalArgumentException("DoIP payload length out of range: $len")
+        }
         val payload = ByteArray(len)
         if (len > 0) din.readFully(payload)
         return Frame(payloadType, payload)
@@ -79,7 +92,25 @@ object Doip {
         output.flush()
     }
 
-    /** Strips the 4-byte source/target address prefix from a diagnostic-message payload. */
-    fun udsFromDiagnostic(payload: ByteArray): ByteArray =
-        if (payload.size > 4) payload.copyOfRange(4, payload.size) else ByteArray(0)
+    /**
+     * Strips the 4-byte source/target address prefix from a diagnostic-message payload.
+     * When [expectedTarget] is set, verifies the response source matches that ECU address.
+     */
+    fun udsFromDiagnostic(payload: ByteArray, expectedTarget: Int? = null): ByteArray {
+        if (payload.size < 4) return ByteArray(0)
+        if (expectedTarget != null) {
+            val source = ((payload[0].toInt() and 0xFF) shl 8) or (payload[1].toInt() and 0xFF)
+            if (source != expectedTarget) {
+                throw IllegalArgumentException(
+                    "DoIP response from unexpected address 0x${source.toString(16)} " +
+                        "(expected 0x${expectedTarget.toString(16)})"
+                )
+            }
+        }
+        return payload.copyOfRange(4, payload.size)
+    }
+
+    /** ACK/NACK code is the 5th byte of the diagnostic ACK/NACK payload (0 = OK). */
+    fun diagnosticAckCode(payload: ByteArray): Int =
+        payload.getOrNull(4)?.toInt()?.and(0xFF) ?: -1
 }

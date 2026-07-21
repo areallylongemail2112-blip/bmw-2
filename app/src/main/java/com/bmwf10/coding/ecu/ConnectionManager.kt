@@ -4,6 +4,7 @@ import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import com.bmwf10.coding.data.model.CodingItem
 import com.bmwf10.coding.data.model.Module
+import com.bmwf10.coding.data.model.ValueType
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -44,6 +45,9 @@ object ConnectionManager {
         return CodingEngine(t, current.isDemo)
     }
 
+    /** Active demo transport when connected in demo mode, otherwise null. */
+    fun demoTransport(): DemoTransport? = transport as? DemoTransport
+
     suspend fun connectDemo() = connectWith(
         ConnectionType.DEMO, "Demo Mode", DemoTransport()
     )
@@ -62,6 +66,7 @@ object ConnectionManager {
             transport = t
             _state.postValue(ConnectionState(type, ConnectionStatus.CONNECTED, label))
         } catch (e: Exception) {
+            runCatching { t.disconnect() }
             transport = null
             _state.postValue(
                 ConnectionState(type, ConnectionStatus.ERROR, label, e.message ?: "Connection failed")
@@ -82,4 +87,49 @@ object ConnectionManager {
      */
     fun readValue(module: Module, coding: CodingItem): String? =
         codingEngine()?.readCoding(module, coding)
+
+    /**
+     * Primes [DemoTransport] coding blocks from each item's demo/default value so a
+     * subsequent read-modify-write matches the values shown in the UI.
+     */
+    fun seedDemoTransport(modules: Map<String, Module>, codings: List<CodingItem>) {
+        val demo = demoTransport() ?: return
+        for (coding in codings) {
+            val module = modules[coding.moduleId] ?: continue
+            val map = coding.ecuMap ?: continue
+            if (map.byteOffset < 0 || map.bitMask == 0) continue
+            val uiValue = coding.demoValue ?: coding.defaultValue
+            val masked = try {
+                encodeForSeed(coding, map.bitMask, map.encodedValues, map.scale, uiValue)
+            } catch (_: Exception) {
+                continue
+            }
+            demo.seedByte(module.diagAddress, map.dataIdentifier, map.byteOffset, masked, map.bitMask)
+        }
+    }
+
+    private fun encodeForSeed(
+        coding: CodingItem,
+        bitMask: Int,
+        encodedValues: Map<String, String>?,
+        scale: Double,
+        uiValue: String
+    ): Int {
+        val shift = Integer.numberOfTrailingZeros(bitMask and 0xFF)
+        return when (coding.valueType) {
+            ValueType.BOOLEAN, ValueType.ENUM -> {
+                val encoded = encodedValues?.get(uiValue) ?: return 0
+                Hex.parseByte(encoded) and bitMask
+            }
+            ValueType.INTEGER -> {
+                val n = uiValue.toDoubleOrNull() ?: return 0
+                val field = Math.round(n / scale).toInt()
+                (field shl shift) and bitMask
+            }
+            ValueType.HEX -> {
+                val field = Hex.parseByte(uiValue)
+                (field shl shift) and bitMask
+            }
+        }
+    }
 }

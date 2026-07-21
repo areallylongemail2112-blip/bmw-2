@@ -22,6 +22,7 @@ class DemoTransport : EcuTransport {
 
     override fun disconnect() {
         connected = false
+        blocks.clear()
     }
 
     private fun key(diagAddress: Int, did: Int) = (diagAddress shl 16) or (did and 0xFFFF)
@@ -36,5 +37,20 @@ class DemoTransport : EcuTransport {
         check(connected) { "Demo transport not connected" }
         Thread.sleep(300)
         blocks[key(diagAddress, did)] = data.copyOf()
+    }
+
+    /**
+     * Seeds a coding block byte so demo UI values match what [CodingEngine] would read back.
+     * Safe to call only while connected.
+     */
+    fun seedByte(diagAddress: Int, did: Int, byteOffset: Int, maskedValue: Int, bitMask: Int) {
+        check(connected) { "Demo transport not connected" }
+        require(byteOffset >= 0) { "byteOffset must be >= 0" }
+        val k = key(diagAddress, did)
+        val block = blocks.getOrPut(k) { ByteArray(maxOf(8, byteOffset + 1)) }
+        val working = if (byteOffset < block.size) block else block.copyOf(byteOffset + 1)
+        val existing = working[byteOffset].toInt() and 0xFF
+        working[byteOffset] = ((existing and bitMask.inv()) or (maskedValue and bitMask)).toByte()
+        blocks[k] = working
     }
 }
