@@ -9,11 +9,11 @@ import java.io.OutputStream
  * an ENET cable to talk to F-series cars. A DoIP message is an 8-byte header followed by a
  * payload:
  *
- *   `[protoVer][~protoVer][payloadType:2][payloadLen:4][payload...]`
+ *   protoVer | ~protoVer | payloadType (2 bytes) | payloadLen (4 bytes) | payload
  *
  * We use two payload types:
  *   0x0005 Routing activation request/response (the DoIP "handshake")
- *   0x8001 Diagnostic message: `[sourceAddr:2][targetAddr:2][udsBytes...]`
+ *   0x8001 Diagnostic message: sourceAddr (2 bytes) | targetAddr (2 bytes) | UDS bytes
  */
 object Doip {
     const val PROTOCOL_VERSION = 0x02
