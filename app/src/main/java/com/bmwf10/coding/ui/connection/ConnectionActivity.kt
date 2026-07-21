@@ -5,7 +5,6 @@ import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
 import android.view.View
-import androidx.activity.result.contracts.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
@@ -26,13 +25,6 @@ class ConnectionActivity : AppCompatActivity() {
     private val scanner by lazy { BleScanner(this) }
     private lateinit var bleAdapter: BleDeviceAdapter
     private val found = mutableListOf<BleDevice>()
-
-    private val permissionLauncher = registerForActivityResult(
-        ActivityResultContracts.RequestMultiplePermissions()
-    ) { grants ->
-        if (grants.values.all { it }) startScan()
-        else snack("Bluetooth permission is required to scan for OBD adapters.")
-    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -81,7 +73,23 @@ class ConnectionActivity : AppCompatActivity() {
         val missing = requiredBlePermissions().filter {
             ContextCompat.checkSelfPermission(this, it) != PackageManager.PERMISSION_GRANTED
         }
-        if (missing.isEmpty()) startScan() else permissionLauncher.launch(missing.toTypedArray())
+        if (missing.isEmpty()) startScan()
+        else requestPermissions(missing.toTypedArray(), BLE_PERMISSION_REQUEST)
+    }
+
+    override fun onRequestPermissionsResult(
+        requestCode: Int,
+        permissions: Array<out String>,
+        grantResults: IntArray
+    ) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        if (requestCode != BLE_PERMISSION_REQUEST) return
+
+        if (grantResults.isNotEmpty() && grantResults.all { it == PackageManager.PERMISSION_GRANTED }) {
+            startScan()
+        } else {
+            snack("Bluetooth permission is required to scan for OBD adapters.")
+        }
     }
 
     private fun startScan() {
@@ -119,4 +127,8 @@ class ConnectionActivity : AppCompatActivity() {
 
     private fun snack(msg: String) =
         Snackbar.make(binding.root, msg, Snackbar.LENGTH_LONG).show()
+
+    private companion object {
+        const val BLE_PERMISSION_REQUEST = 100
+    }
 }
