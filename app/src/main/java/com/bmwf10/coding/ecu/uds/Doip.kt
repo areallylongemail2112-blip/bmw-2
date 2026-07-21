@@ -4,7 +4,7 @@ import java.io.DataInputStream
 import java.io.InputStream
 import java.io.OutputStream
 
-/**
+/*
  * Minimal DoIP (Diagnostics over IP, ISO 13400) framing — the protocol E-Sys/ISTA use over
  * an ENET cable to talk to F-series cars. A DoIP message is an 8-byte header followed by a
  * payload:
