@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
 
     <!-- Real ECU coding needs the local network (ENET/DoIP over TCP, OBD-WiFi adapters). -->
     <uses-permission android:name="android.permission.INTERNET" />
@@ -15,8 +16,12 @@
     <uses-permission android:name="android.permission.BLUETOOTH_SCAN"
         android:usesPermissionFlags="neverForLocation" />
     <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
-    <!-- Pre-Android-12 BLE scanning requires location. -->
+    <!-- Pre-Android-12 BLE scanning requires location. On 12+ we scan with
+         BLUETOOTH_SCAN + neverForLocation, so location is capped at SDK 30. -->
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"
+        android:maxSdkVersion="30"
+        tools:ignore="CoarseFineLocation" />
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"
         android:maxSdkVersion="30" />
 
     <uses-feature android:name="android.hardware.bluetooth_le" android:required="false" />
