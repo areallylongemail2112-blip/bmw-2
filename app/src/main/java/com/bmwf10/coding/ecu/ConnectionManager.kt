@@ -5,6 +5,8 @@ import androidx.lifecycle.MutableLiveData
 import com.bmwf10.coding.data.model.CodingItem
 import com.bmwf10.coding.data.model.Module
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 
 enum class ConnectionType { DEMO, WIFI_ENET, BLE }
@@ -35,6 +37,9 @@ object ConnectionManager {
 
     @Volatile private var transport: EcuTransport? = null
 
+    /** Serializes connect/disconnect so a double-tap cannot leak a transport. */
+    private val gate = Mutex()
+
     val current: ConnectionState get() = _state.value ?: ConnectionState()
 
     /** A coding engine bound to the active transport, or null if not connected. */
@@ -55,25 +60,36 @@ object ConnectionManager {
         connectWith(ConnectionType.BLE, device, t)
 
     private suspend fun connectWith(type: ConnectionType, label: String, t: EcuTransport) {
-        disconnect()
-        _state.postValue(ConnectionState(type, ConnectionStatus.CONNECTING, label))
-        try {
-            withContext(Dispatchers.IO) { t.connect() }
-            transport = t
-            _state.postValue(ConnectionState(type, ConnectionStatus.CONNECTED, label))
-        } catch (e: Exception) {
-            transport = null
-            _state.postValue(
-                ConnectionState(type, ConnectionStatus.ERROR, label, e.message ?: "Connection failed")
-            )
+        gate.withLock {
+            closeTransport()
+            _state.postValue(ConnectionState(type, ConnectionStatus.CONNECTING, label))
+            try {
+                withContext(Dispatchers.IO) { t.connect() }
+                transport = t
+                _state.postValue(ConnectionState(type, ConnectionStatus.CONNECTED, label))
+            } catch (e: Exception) {
+                transport = null
+                withContext(Dispatchers.IO) { runCatching { t.disconnect() } }
+                _state.postValue(
+                    ConnectionState(type, ConnectionStatus.ERROR, label, e.message ?: "Connection failed")
+                )
+            }
         }
     }
 
-    fun disconnect() {
+    suspend fun disconnect() {
+        gate.withLock {
+            closeTransport()
+            _state.postValue(ConnectionState())
+        }
+    }
+
+    private suspend fun closeTransport() {
         val t = transport
         transport = null
-        runCatching { t?.disconnect() }
-        _state.postValue(ConnectionState())
+        if (t != null) {
+            withContext(Dispatchers.IO) { runCatching { t.disconnect() } }
+        }
     }
 
     /**

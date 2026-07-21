@@ -31,7 +31,10 @@ class BleScanner(context: Context) {
         val cb = object : ScanCallback() {
             override fun onScanResult(callbackType: Int, result: ScanResult) {
                 val dev: BluetoothDevice = result.device
-                val name = dev.name ?: return
+                // Many OBD dongles advertise without a local name; still show them by address.
+                val name = dev.name
+                    ?: result.scanRecord?.deviceName
+                    ?: "OBD ${dev.address}"
                 if (seen.add(dev.address)) onFound(BleDevice(name, dev.address))
             }
         }

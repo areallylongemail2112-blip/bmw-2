@@ -69,6 +69,11 @@ class BleObdTransport(
         }
 
         override fun onServicesDiscovered(g: BluetoothGatt, status: Int) {
+            if (status != BluetoothGatt.GATT_SUCCESS) {
+                connected = false
+                connectLatch?.countDown()
+                return
+            }
             val service = g.getService(NUS_SERVICE)
             rx = service?.getCharacteristic(NUS_RX)
             val tx = service?.getCharacteristic(NUS_TX)
@@ -128,7 +133,13 @@ class BleObdTransport(
     override fun connect() {
         val latch = CountDownLatch(1)
         connectLatch = latch
-        gatt = device.connectGatt(context, false, callback)
+        // Prefer LE transport on dual-mode devices; auto can pick classic and fail NUS discovery.
+        gatt = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            device.connectGatt(context, false, callback, BluetoothDevice.TRANSPORT_LE)
+        } else {
+            @Suppress("DEPRECATION")
+            device.connectGatt(context, false, callback)
+        }
         if (!latch.await(TIMEOUT_MS, TimeUnit.MILLISECONDS) || !connected) {
             disconnect()
             throw EcuException("BLE connect to ${device.address} failed or NUS not found")

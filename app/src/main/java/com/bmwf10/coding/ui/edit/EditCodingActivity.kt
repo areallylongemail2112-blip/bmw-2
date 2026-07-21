@@ -107,12 +107,21 @@ class EditCodingActivity : AppCompatActivity() {
                 val rawHi = c.max ?: 100
                 val min = minOf(rawLo, rawHi).toFloat()
                 val max = (if (rawHi > rawLo) rawHi else rawLo + 1).toFloat()
-                binding.integerSlider.valueFrom = min
-                binding.integerSlider.valueTo = max
                 val cur = current.toFloatOrNull()?.coerceIn(min, max) ?: min
-                binding.integerSlider.value = cur
+                // Material Slider validates that `value` stays inside [valueFrom, valueTo] on
+                // every assignment. Expand around the XML default (often 0) first so a coding
+                // whose min > 0 (e.g. hud_brightness) cannot throw mid-update.
+                val slider = binding.integerSlider
+                val widenLo = minOf(slider.value, min, cur)
+                val widenHi = maxOf(slider.value, max, cur)
+                slider.valueFrom = widenLo
+                slider.valueTo = widenHi
+                slider.value = cur
+                slider.valueFrom = min
+                slider.valueTo = max
                 binding.integerValueLabel.text = formatInt(c, cur.toInt())
-                binding.integerSlider.addOnChangeListener { _, value, _ ->
+                slider.clearOnChangeListeners()
+                slider.addOnChangeListener { _, value, _ ->
                     binding.integerValueLabel.text = formatInt(c, value.toInt())
                 }
             }
@@ -138,15 +147,20 @@ class EditCodingActivity : AppCompatActivity() {
         val newValue = readInput(c)
         viewModel.validate(newValue)?.let { snackError(it); return }
 
-        if (!ConnectionManager.current.isConnected) {
+        val connState = ConnectionManager.current
+        if (!connState.isConnected) {
             snackError("Not connected. Connect on the Connection screen (or use demo mode) first.")
+            return
+        }
+        if (!connState.supportsCoding) {
+            snackError("This connection cannot write coding. Use ENET or demo mode.")
             return
         }
 
         val oldDisplay = c.displayValue(viewModel.currentValue.value ?: c.defaultValue)
         val newDisplay = c.displayValue(newValue)
-        val conn = ConnectionManager.current
-        val target = if (conn.isDemo) "the simulated car (demo mode)" else "your car (${conn.label})"
+        val target = if (connState.isDemo) "the simulated car (demo mode)"
+            else "your car (${connState.label})"
 
         val message = buildString {
             append("Module: ${c.moduleId.uppercase()}\n")

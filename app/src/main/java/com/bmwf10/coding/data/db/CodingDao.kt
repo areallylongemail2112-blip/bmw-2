@@ -4,6 +4,7 @@ import androidx.room.Dao
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
+import androidx.room.Transaction
 
 @Dao
 interface CodingDao {
@@ -16,6 +17,13 @@ interface CodingDao {
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertCodings(codings: List<CodingEntity>)
+
+    /** Insert modules + codings atomically so a mid-seed crash cannot leave a half-empty DB. */
+    @Transaction
+    suspend fun seedDefinitions(modules: List<ModuleEntity>, codings: List<CodingEntity>) {
+        insertModules(modules)
+        insertCodings(codings)
+    }
 
     @Query("SELECT * FROM modules ORDER BY name")
     suspend fun getModules(): List<ModuleEntity>

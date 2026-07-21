@@ -39,7 +39,8 @@ class CodingAdapter(
             expandToggle.text = if (isOpen) "Hide details" else "What does this do?"
             expandToggle.setOnClickListener {
                 if (expanded.contains(c.id)) expanded.remove(c.id) else expanded.add(c.id)
-                notifyItemChanged(holder.bindingAdapterPosition)
+                val pos = holder.bindingAdapterPosition
+                if (pos != RecyclerView.NO_POSITION) notifyItemChanged(pos)
             }
 
             editButton.setOnClickListener { onEdit(item) }

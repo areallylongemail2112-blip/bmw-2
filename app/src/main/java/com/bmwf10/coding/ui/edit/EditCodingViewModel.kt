@@ -98,6 +98,12 @@ class EditCodingViewModel(app: Application) : AndroidViewModel(app) {
             _result.value = Event(ApplyResult.NeedsConnection)
             return
         }
+        if (!conn.supportsCoding) {
+            _result.value = Event(
+                ApplyResult.Error("This connection cannot write coding. Use ENET or demo mode.")
+            )
+            return
+        }
         validate(newValue)?.let {
             _result.value = Event(ApplyResult.Error(it))
             return

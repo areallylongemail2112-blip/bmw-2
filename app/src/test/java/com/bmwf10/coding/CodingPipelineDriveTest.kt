@@ -106,6 +106,40 @@ class CodingPipelineDriveTest {
         assertEquals(0x50, sbByte.toInt() and 0xFF)
         assertEquals("5", sbRead)
 
+        // 8) Out-of-range byteOffset must refuse rather than pad/grow the coding block.
+        val oob = CodingItem(
+            id = "test_oob", moduleId = "frm", name = "Past End",
+            description = "", longDescription = "", valueType = ValueType.BOOLEAN,
+            defaultValue = "false", safeDefault = "false",
+            ecuMap = EcuMap(
+                dataIdentifier = 0x3000, byteOffset = 64, bitMask = 0x01,
+                encodedValues = mapOf("true" to "0x01", "false" to "0x00"),
+                verified = false
+            )
+        )
+        val oobBlocked = try {
+            engine.applyCoding(module("frm"), oob, "true"); "NOT BLOCKED"
+        } catch (e: Exception) {
+            "blocked: ${e.message?.take(80)}"
+        }
+        println("BOUNDS   oversized byteOffset -> $oobBlocked")
+        assertTrue(oobBlocked.startsWith("blocked"))
+
+        // 9) INTEGER that does not fit the bitMask width must refuse (no silent truncation).
+        val overflow = CodingItem(
+            id = "test_overflow", moduleId = "frm", name = "Nibble Overflow",
+            description = "", longDescription = "", valueType = ValueType.INTEGER,
+            defaultValue = "0", safeDefault = "0", min = 0, max = 255,
+            ecuMap = EcuMap(dataIdentifier = 0x9998, byteOffset = 0, bitMask = 0x0F, verified = false)
+        )
+        val overflowBlocked = try {
+            engine.applyCoding(module("frm"), overflow, "16"); "NOT BLOCKED"
+        } catch (e: Exception) {
+            "blocked: ${e.message?.take(80)}"
+        }
+        println("WIDTH    int 16 into mask 0x0F -> $overflowBlocked")
+        assertTrue(overflowBlocked.startsWith("blocked"))
+
         println("=== All coding-pipeline drives passed ===")
         transport.disconnect()
     }

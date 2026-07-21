@@ -71,16 +71,17 @@ class EnetDoipTransport(
     }
 
     private fun ensureExtendedSession(diagAddress: Int) {
-        val resp = request(diagAddress, Uds.sessionControl(Uds.SESSION_EXTENDED))
+        val resp = requestUnlocked(diagAddress, Uds.sessionControl(Uds.SESSION_EXTENDED))
         if (!Uds.isPositive(resp, Uds.SID_DIAGNOSTIC_SESSION_CONTROL)) {
             throw EcuException("Could not open extended session: " + describe(resp))
         }
     }
 
+    @Synchronized
     override fun readCodingBlock(diagAddress: Int, did: Int): ByteArray {
         ensureConnected()
         ensureExtendedSession(diagAddress)
-        val resp = request(diagAddress, Uds.readDataByIdentifier(did))
+        val resp = requestUnlocked(diagAddress, Uds.readDataByIdentifier(did))
         if (!Uds.isPositive(resp, Uds.SID_READ_DATA_BY_IDENTIFIER)) {
             throw EcuException("ReadDataByIdentifier failed: " + describe(resp))
         }
@@ -88,34 +89,70 @@ class EnetDoipTransport(
         return if (resp.size > 3) resp.copyOfRange(3, resp.size) else ByteArray(0)
     }
 
+    @Synchronized
     override fun writeCodingBlock(diagAddress: Int, did: Int, data: ByteArray) {
         ensureConnected()
         ensureExtendedSession(diagAddress)
-        val resp = request(diagAddress, Uds.writeDataByIdentifier(did, data))
+        val resp = requestUnlocked(diagAddress, Uds.writeDataByIdentifier(did, data))
         if (!Uds.isPositive(resp, Uds.SID_WRITE_DATA_BY_IDENTIFIER)) {
             throw EcuException("WriteDataByIdentifier failed: " + describe(resp))
         }
     }
 
-    /** Sends one UDS request and returns the final UDS response, absorbing 0x78 "pending". */
-    private fun request(diagAddress: Int, uds: ByteArray): ByteArray {
+    /**
+     * Sends one UDS request and returns the final UDS response, absorbing 0x78 "pending".
+     * Caller must hold the instance monitor (see [readCodingBlock]/[writeCodingBlock]) so
+     * concurrent callers cannot interleave frames on the shared TCP socket.
+     * Bound by a wall-clock deadline and max pending/unknown-frame counts so alive-check
+     * traffic (or a silent car) cannot hang the request forever.
+     */
+    private fun requestUnlocked(diagAddress: Int, uds: ByteArray): ByteArray {
         val out = output ?: throw EcuException("Not connected")
         val inp = input ?: throw EcuException("Not connected")
         Doip.write(out, Doip.diagnosticMessage(Doip.TESTER_ADDRESS, diagAddress, uds))
 
+        val deadlineNs = System.nanoTime() + readTimeoutMs * 1_000_000L * 4
+        var pendingCount = 0
+        var ignoredFrames = 0
         while (true) {
+            if (System.nanoTime() > deadlineNs) {
+                throw EcuException("DoIP response timed out waiting for ECU 0x${"%04X".format(diagAddress)}")
+            }
             val frame = Doip.readFrame(inp)
             when (frame.payloadType) {
                 Doip.TYPE_DIAGNOSTIC_MESSAGE -> {
+                    // Diagnostic payload: source(2) target(2) uds... — require the source to
+                    // be the ECU we addressed so we don't accept a stale/wrong response.
+                    if (frame.payload.size >= 4) {
+                        val src = ((frame.payload[0].toInt() and 0xFF) shl 8) or
+                            (frame.payload[1].toInt() and 0xFF)
+                        if (src != diagAddress) {
+                            if (++ignoredFrames > 16) {
+                                throw EcuException("DoIP received too many frames from unexpected ECUs")
+                            }
+                            continue
+                        }
+                    }
                     val resp = Doip.udsFromDiagnostic(frame.payload)
                     // 0x7F xx 0x78 = response pending; keep waiting for the real answer.
-                    if (Uds.negativeResponseCode(resp) == 0x78) continue
+                    if (Uds.negativeResponseCode(resp) == 0x78) {
+                        if (++pendingCount > 32) {
+                            throw EcuException("DoIP response pending exceeded limit")
+                        }
+                        continue
+                    }
                     return resp
                 }
                 Doip.TYPE_DIAGNOSTIC_ACK -> continue // positive ack, real response follows
                 Doip.TYPE_DIAGNOSTIC_NACK ->
                     throw EcuException("DoIP diagnostic NACK from gateway")
-                else -> continue
+                else -> {
+                    if (++ignoredFrames > 16) {
+                        throw EcuException(
+                            "DoIP received unexpected frame type 0x${frame.payloadType.toString(16)}"
+                        )
+                    }
+                }
             }
         }
     }

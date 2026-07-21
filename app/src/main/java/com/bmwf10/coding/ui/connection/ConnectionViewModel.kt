@@ -17,8 +17,10 @@ class ConnectionViewModel(app: Application) : AndroidViewModel(app) {
     fun connectDemo() {
         viewModelScope.launch {
             ConnectionManager.connectDemo()
-            // Populate realistic "current values" so the app is fully usable with no car.
-            repo.seedDemoValues()
+            // Only seed after a successful connect — connectWith swallows failures into ERROR.
+            if (ConnectionManager.current.isConnected) {
+                repo.seedDemoValues()
+            }
         }
     }
 
@@ -30,5 +32,7 @@ class ConnectionViewModel(app: Application) : AndroidViewModel(app) {
         viewModelScope.launch { ConnectionManager.connectBle(label, transport) }
     }
 
-    fun disconnect() = ConnectionManager.disconnect()
+    fun disconnect() {
+        viewModelScope.launch { ConnectionManager.disconnect() }
+    }
 }

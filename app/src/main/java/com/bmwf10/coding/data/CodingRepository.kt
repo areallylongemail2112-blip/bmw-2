@@ -32,8 +32,10 @@ class CodingRepository private constructor(
     suspend fun ensureSeeded() = withContext(Dispatchers.IO) {
         if (dao.moduleCount() > 0) return@withContext
         val data = CodingAssetLoader.load(context)
-        dao.insertModules(data.modules.map { it.toEntity() })
-        dao.insertCodings(data.codings.map { it.toEntity() })
+        dao.seedDefinitions(
+            data.modules.map { it.toEntity() },
+            data.codings.map { it.toEntity() }
+        )
     }
 
     /**

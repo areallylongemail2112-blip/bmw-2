@@ -39,10 +39,16 @@ class CodingEngine(private val transport: EcuTransport, private val isDemo: Bool
 
         val rawValue = encode(coding, map, uiValue)
 
-        // Read-modify-write the coding block.
+        // Read-modify-write the coding block. Never pad/grow: real ECUs expect a fixed DID
+        // length, and writing a longer block can corrupt the NCD or be rejected with an NRC.
         val block = transport.readCodingBlock(module.diagAddress, map.dataIdentifier)
-        val working = if (map.byteOffset < block.size) block.copyOf()
-        else block.copyOf(map.byteOffset + 1) // grow if the module returned a shorter block
+        if (map.byteOffset < 0 || map.byteOffset >= block.size) {
+            throw EcuException(
+                "Coding byte offset ${map.byteOffset} is outside the ${block.size}-byte " +
+                    "block read from ${module.name} (DID 0x${"%04X".format(map.dataIdentifier)})."
+            )
+        }
+        val working = block.copyOf()
 
         val existing = working[map.byteOffset].toInt() and 0xFF
         val merged = (existing and map.bitMask.inv()) or (rawValue and map.bitMask)
@@ -72,7 +78,16 @@ class CodingEngine(private val transport: EcuTransport, private val isDemo: Bool
                 ?: throw EcuException("\"$uiValue\" is not a number")
             // Shift the numeric value into the field's bit position before masking, so a
             // field packed above bit 0 (e.g. bitMask 0xF0) is encoded correctly.
-            ((Math.round(n / map.scale).toInt() shl map.bitShift()) and map.bitMask)
+            val shift = map.bitShift()
+            val fieldMax = if (map.bitMask == 0) 0 else map.bitMask ushr shift
+            val raw = Math.round(n / map.scale).toInt()
+            if (raw < 0 || raw > fieldMax) {
+                throw EcuException(
+                    "Value $uiValue encodes to $raw, which does not fit in bitMask " +
+                        "0x${"%02X".format(map.bitMask)} (max $fieldMax)."
+                )
+            }
+            (raw shl shift) and map.bitMask
         }
         ValueType.HEX -> Hex.parseByte(uiValue) and map.bitMask
     }

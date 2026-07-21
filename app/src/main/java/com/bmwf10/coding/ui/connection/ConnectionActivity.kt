@@ -23,9 +23,11 @@ class ConnectionActivity : AppCompatActivity() {
     private lateinit var binding: ActivityConnectionBinding
     private val viewModel: ConnectionViewModel by viewModels()
 
-    private val scanner by lazy { BleScanner(this) }
+    // Application context so the scanner (and any retained transport) never holds this Activity.
+    private val scanner by lazy { BleScanner(applicationContext) }
     private lateinit var bleAdapter: BleDeviceAdapter
     private val found = mutableListOf<BleDevice>()
+    private val stopScanRunnable = Runnable { stopScan() }
 
     private val permissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
@@ -90,31 +92,41 @@ class ConnectionActivity : AppCompatActivity() {
         binding.scanButton.text = "Scanning…"
         scanner.start { device ->
             runOnUiThread {
+                if (!::binding.isInitialized) return@runOnUiThread
                 if (found.none { it.address == device.address }) {
                     found.add(device)
                     bleAdapter.submitList(found.toList())
                 }
             }
         }
-        // Auto-stop after a reasonable scan window.
-        binding.bleList.postDelayed({ stopScan() }, 8000)
+        // Auto-stop after a reasonable scan window; removeCallbacks in stopScan/onDestroy
+        // so a late tick cannot touch views after teardown.
+        binding.bleList.removeCallbacks(stopScanRunnable)
+        binding.bleList.postDelayed(stopScanRunnable, 8000)
     }
 
     private fun stopScan() {
+        if (::binding.isInitialized) binding.bleList.removeCallbacks(stopScanRunnable)
         runCatching { scanner.stop() }
-        binding.scanButton.text = "Scan for BLE adapters"
+        if (::binding.isInitialized) binding.scanButton.text = "Scan for BLE adapters"
     }
 
     private fun connectBle(device: BleDevice) {
         stopScan()
         val remote = scanner.deviceFor(device.address)
         if (remote == null) { snack("Device no longer available."); return }
-        viewModel.connectBle(device.name, BleObdTransport(this, remote))
+        // Application context: ConnectionManager retains the transport after this screen finishes.
+        viewModel.connectBle(device.name, BleObdTransport(applicationContext, remote))
     }
 
     override fun onPause() {
         super.onPause()
         stopScan()
+    }
+
+    override fun onDestroy() {
+        stopScan()
+        super.onDestroy()
     }
 
     private fun snack(msg: String) =
