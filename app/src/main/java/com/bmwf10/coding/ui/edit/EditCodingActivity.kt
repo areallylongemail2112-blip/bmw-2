@@ -28,10 +28,7 @@ class EditCodingActivity : AppCompatActivity() {
         ConnectionBadge.bind(binding.connectionChip, this, this)
         binding.toolbar.setNavigationOnClickListener { finish() }
 
-        viewModel.coding.observe(this) { c -> if (c != null) bindCoding(c) }
-        viewModel.currentValue.observe(this) { v ->
-            viewModel.coding.value?.let { binding.currentValue.text = it.displayValue(v) }
-        }
+        viewModel.state.observe(this) { state -> bindCoding(state) }
         viewModel.busy.observe(this) { busy ->
             binding.applyButton.isEnabled = !busy
             binding.progress.visibility = if (busy) View.VISIBLE else View.GONE
@@ -57,10 +54,12 @@ class EditCodingActivity : AppCompatActivity() {
         viewModel.load(codingId)
     }
 
-    private fun bindCoding(c: CodingItem) {
+    private fun bindCoding(state: EditCodingUiState) {
+        val c = state.coding
         binding.toolbar.title = c.name
         binding.longDescription.text = c.longDescription
         binding.safeInfo.text = buildSafeInfo(c)
+        binding.currentValue.text = c.displayValue(state.currentValue)
 
         // Warning banner for irreversible / flagged codings.
         val warn = c.warning ?: if (c.irreversible)
@@ -68,19 +67,18 @@ class EditCodingActivity : AppCompatActivity() {
         binding.warningBanner.visibility = if (warn != null) View.VISIBLE else View.GONE
         binding.warningText.text = warn ?: ""
 
-        renderInput(c)
+        renderInput(c, state.currentValue)
 
-        binding.applyButton.setOnClickListener { confirmAndApply(c) }
+        binding.applyButton.setOnClickListener { confirmAndApply(c, state.currentValue) }
     }
 
     /** Shows only the input control appropriate to the coding's value type. */
-    private fun renderInput(c: CodingItem) {
+    private fun renderInput(c: CodingItem, current: String) {
         binding.booleanSwitch.visibility = View.GONE
         binding.enumSpinner.visibility = View.GONE
         binding.integerGroup.visibility = View.GONE
         binding.hexInputLayout.visibility = View.GONE
 
-        val current = viewModel.currentValue.value ?: c.defaultValue
         when (c.valueType) {
             ValueType.BOOLEAN -> {
                 binding.booleanSwitch.visibility = View.VISIBLE
@@ -102,6 +100,7 @@ class EditCodingActivity : AppCompatActivity() {
                 binding.integerSlider.valueFrom = min
                 binding.integerSlider.valueTo = max
                 val cur = current.toFloatOrNull()?.coerceIn(min, max) ?: min
+                binding.integerSlider.clearOnChangeListeners()
                 binding.integerSlider.value = cur
                 binding.integerValueLabel.text = formatInt(c, cur.toInt())
                 binding.integerSlider.addOnChangeListener { _, value, _ ->
@@ -126,7 +125,7 @@ class EditCodingActivity : AppCompatActivity() {
         ValueType.HEX -> "0x" + binding.hexInput.text.toString().trim().removePrefix("0x")
     }
 
-    private fun confirmAndApply(c: CodingItem) {
+    private fun confirmAndApply(c: CodingItem, currentValue: String) {
         val newValue = readInput(c)
         viewModel.validate(newValue)?.let { snackError(it); return }
 
@@ -135,7 +134,7 @@ class EditCodingActivity : AppCompatActivity() {
             return
         }
 
-        val oldDisplay = c.displayValue(viewModel.currentValue.value ?: c.defaultValue)
+        val oldDisplay = c.displayValue(currentValue)
         val newDisplay = c.displayValue(newValue)
         val conn = ConnectionManager.current
         val target = if (conn.isDemo) "the simulated car (demo mode)" else "your car (${conn.label})"

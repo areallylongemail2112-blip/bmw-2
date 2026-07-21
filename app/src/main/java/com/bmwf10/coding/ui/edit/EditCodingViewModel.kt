@@ -26,18 +26,18 @@ sealed class ApplyResult {
     object NeedsConnection : ApplyResult()
 }
 
+data class EditCodingUiState(
+    val coding: CodingItem,
+    val module: Module,
+    val currentValue: String
+)
+
 class EditCodingViewModel(app: Application) : AndroidViewModel(app) {
 
     private val repo = (app as BmwCodingApp).repository
 
-    private val _coding = MutableLiveData<CodingItem?>()
-    val coding: LiveData<CodingItem?> = _coding
-
-    private val _module = MutableLiveData<Module?>()
-    val module: LiveData<Module?> = _module
-
-    private val _currentValue = MutableLiveData<String>()
-    val currentValue: LiveData<String> = _currentValue
+    private val _state = MutableLiveData<EditCodingUiState>()
+    val state: LiveData<EditCodingUiState> = _state
 
     private val _busy = MutableLiveData(false)
     val busy: LiveData<Boolean> = _busy
@@ -48,9 +48,9 @@ class EditCodingViewModel(app: Application) : AndroidViewModel(app) {
     fun load(codingId: String) {
         viewModelScope.launch {
             val c = repo.getCoding(codingId) ?: return@launch
-            _coding.value = c
-            _module.value = repo.getModule(c.moduleId)
-            _currentValue.value = repo.getValue(c)
+            val module = repo.getModule(c.moduleId) ?: return@launch
+            val currentValue = repo.getValue(c)
+            _state.value = EditCodingUiState(c, module, currentValue)
         }
     }
 
@@ -59,7 +59,7 @@ class EditCodingViewModel(app: Application) : AndroidViewModel(app) {
      * if valid.
      */
     fun validate(input: String): String? {
-        val c = _coding.value ?: return "Not loaded"
+        val c = _state.value?.coding ?: return "Not loaded"
         return when (c.valueType) {
             ValueType.BOOLEAN -> if (input == "true" || input == "false") null
             else "Value must be true or false"
@@ -87,8 +87,9 @@ class EditCodingViewModel(app: Application) : AndroidViewModel(app) {
      * without an active, connected transport the write is refused and never reaches hardware.
      */
     fun apply(newValue: String) {
-        val c = _coding.value ?: return
-        val m = _module.value ?: return
+        val state = _state.value ?: return
+        val c = state.coding
+        val m = state.module
 
         val conn = ConnectionManager.current
         if (!conn.isConnected) {
@@ -116,7 +117,9 @@ class EditCodingViewModel(app: Application) : AndroidViewModel(app) {
                     ApplyResult.Error(e.message ?: "Coding failed")
                 }
             }
-            if (outcome is ApplyResult.Success) _currentValue.value = newValue
+            if (outcome is ApplyResult.Success) {
+                _state.value = state.copy(currentValue = newValue)
+            }
             _busy.value = false
             _result.value = Event(outcome)
         }
