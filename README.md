@@ -107,6 +107,47 @@ artifact → unzip → sideload `app-debug.apk` (enable "install from unknown so
 browser/Files app when prompted). The build is debug-signed — fine for your own device, not for
 distribution.
 
+### Release signing
+
+A **signed release APK** (`bmw-f10-coding-release-apk` artifact) is produced by the same workflow
+on tag pushes matching `v*` and on manual **Run workflow** dispatch. Signing credentials come from
+environment variables at build time, so nothing secret lives in the repo.
+
+**One-time setup — generate a keystore** (keep the `.jks` file and its passwords somewhere safe;
+losing them means you can never ship an update that overwrites an install):
+
+```bash
+keytool -genkeypair -v -keystore release.jks -alias bmwf10 \
+  -keyalg RSA -keysize 2048 -validity 10000
+```
+
+**Add the credentials as GitHub Actions secrets** (repo → Settings → Secrets and variables →
+Actions):
+
+| Secret | Value |
+| --- | --- |
+| `RELEASE_KEYSTORE_BASE64` | `base64 -w0 release.jks` (the keystore, base64-encoded) |
+| `RELEASE_KEYSTORE_PASSWORD` | the store password |
+| `RELEASE_KEY_ALIAS` | the key alias (e.g. `bmwf10`) |
+| `RELEASE_KEY_PASSWORD` | the key password |
+
+Then push a tag (`git tag v1.0.0 && git push origin v1.0.0`) or run the workflow manually; download
+`app-release.apk` from the run's artifacts. The `release` job fails fast with a clear message if the
+keystore secret is missing.
+
+**Building a signed release locally** — instead of the CI secrets, drop a git-ignored
+`keystore.properties` in the repo root:
+
+```
+storeFile=/absolute/path/to/release.jks
+storePassword=…
+keyAlias=bmwf10
+keyPassword=…
+```
+
+Then `./gradlew assembleRelease`. Without any keystore configured, the release build still succeeds
+but is left **unsigned** (installable only via `adb install` for testing).
+
 ### Try it with no hardware
 
 Launch the app → tap the **connection chip** in the top bar (or any Edit screen prompt) →
