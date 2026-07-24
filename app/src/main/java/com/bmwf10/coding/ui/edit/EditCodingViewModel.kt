@@ -10,6 +10,7 @@ import com.bmwf10.coding.data.model.CodingItem
 import com.bmwf10.coding.data.model.Module
 import com.bmwf10.coding.data.model.ValueType
 import com.bmwf10.coding.ecu.ConnectionManager
+import com.bmwf10.coding.ecu.Hex
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -120,6 +121,21 @@ class EditCodingViewModel(app: Application) : AndroidViewModel(app) {
                 try {
                     val engine = ConnectionManager.codingEngine()
                         ?: return@withContext ApplyResult.NeedsConnection
+                    // Snapshot the block before modifying it so the exact original bytes can
+                    // be restored from the Backups screen. A failed snapshot aborts the write.
+                    c.ecuMap?.let { map ->
+                        val before = engine.readBlock(m, map.dataIdentifier)
+                        if (before.isNotEmpty()) {
+                            repo.addBackupIfChanged(
+                                module = m,
+                                dataIdentifier = map.dataIdentifier,
+                                blockHex = Hex.encodeCompact(before),
+                                label = "Before editing “${c.name}”",
+                                source = ConnectionManager.backupSource(),
+                                connectionLabel = ConnectionManager.current.label
+                            )
+                        }
+                    }
                     val rawByte = engine.applyCoding(m, c, newValue)
                     repo.setValue(c.id, newValue)
                     ApplyResult.Success(

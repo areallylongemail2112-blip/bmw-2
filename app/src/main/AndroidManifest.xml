@@ -43,5 +43,6 @@
         <activity android:name=".ui.coding.CodingListActivity" android:exported="false" />
         <activity android:name=".ui.edit.EditCodingActivity" android:exported="false" />
         <activity android:name=".ui.connection.ConnectionActivity" android:exported="false" />
+        <activity android:name=".ui.backups.BackupsActivity" android:exported="false" />
     </application>
 </manifest>

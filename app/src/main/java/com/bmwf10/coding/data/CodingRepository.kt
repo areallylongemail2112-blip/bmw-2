@@ -2,10 +2,13 @@ package com.bmwf10.coding.data
 
 import android.content.Context
 import com.bmwf10.coding.data.db.AppDatabase
+import com.bmwf10.coding.data.db.CodingBackupEntity
 import com.bmwf10.coding.data.db.CodingDao
 import com.bmwf10.coding.data.db.CodingEntity
 import com.bmwf10.coding.data.db.CodingValueEntity
 import com.bmwf10.coding.data.db.ModuleEntity
+import com.bmwf10.coding.data.model.BackupSource
+import com.bmwf10.coding.data.model.CodingBackup
 import com.bmwf10.coding.data.model.CodingItem
 import com.bmwf10.coding.data.model.EcuMap
 import com.bmwf10.coding.data.model.EnumOption
@@ -80,7 +83,59 @@ class CodingRepository private constructor(
         dao.upsertValue(CodingValueEntity(codingId, value, System.currentTimeMillis()))
     }
 
+    // --- backups ---
+
+    /**
+     * Stores a coding-block snapshot unless the latest backup of the same block (on the same
+     * source) already holds identical bytes — repeated edits don't pile up duplicates.
+     * @return true if a new backup row was written.
+     */
+    suspend fun addBackupIfChanged(
+        module: Module,
+        dataIdentifier: Int,
+        blockHex: String,
+        label: String,
+        source: BackupSource,
+        connectionLabel: String?
+    ): Boolean = withContext(Dispatchers.IO) {
+        val latest = dao.latestBackupForBlock(module.id, dataIdentifier, source.name)
+        if (latest?.blockHex == blockHex) return@withContext false
+        dao.insertBackup(
+            CodingBackupEntity(
+                moduleId = module.id,
+                moduleName = module.name,
+                diagAddress = module.diagAddress,
+                dataIdentifier = dataIdentifier,
+                blockHex = blockHex,
+                label = label,
+                source = source.name,
+                connectionLabel = connectionLabel,
+                createdAt = System.currentTimeMillis()
+            )
+        )
+        true
+    }
+
+    suspend fun getBackups(): List<CodingBackup> = withContext(Dispatchers.IO) {
+        dao.getBackups().map { it.toModel() }
+    }
+
+    suspend fun deleteBackup(id: Long) = withContext(Dispatchers.IO) { dao.deleteBackup(id) }
+
     // --- mapping helpers ---
+
+    private fun CodingBackupEntity.toModel() = CodingBackup(
+        id = id,
+        moduleId = moduleId,
+        moduleName = moduleName,
+        diagAddress = diagAddress,
+        dataIdentifier = dataIdentifier,
+        blockHex = blockHex,
+        label = label,
+        source = runCatching { BackupSource.valueOf(source) }.getOrDefault(BackupSource.DEMO),
+        connectionLabel = connectionLabel,
+        createdAt = createdAt
+    )
 
     private fun Module.toEntity() =
         ModuleEntity(id, name, fullName, description, iconName, diagAddress)

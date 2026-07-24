@@ -45,4 +45,25 @@ interface CodingDao {
 
     @Query("DELETE FROM coding_values")
     suspend fun clearValues()
+
+    // --- backups ---
+
+    @Insert
+    suspend fun insertBackup(backup: CodingBackupEntity): Long
+
+    @Query("SELECT * FROM coding_backups ORDER BY createdAt DESC")
+    suspend fun getBackups(): List<CodingBackupEntity>
+
+    @Query("SELECT * FROM coding_backups WHERE id = :id")
+    suspend fun getBackup(id: Long): CodingBackupEntity?
+
+    /** Most recent snapshot of one block on one source, used to skip duplicate backups. */
+    @Query(
+        "SELECT * FROM coding_backups WHERE moduleId = :moduleId AND dataIdentifier = :did " +
+            "AND source = :source ORDER BY createdAt DESC LIMIT 1"
+    )
+    suspend fun latestBackupForBlock(moduleId: String, did: Int, source: String): CodingBackupEntity?
+
+    @Query("DELETE FROM coding_backups WHERE id = :id")
+    suspend fun deleteBackup(id: Long)
 }
