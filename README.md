@@ -97,6 +97,16 @@ Then:
 
 Or open the folder in Android Studio (Giraffe or newer) and Run.
 
+### Download a prebuilt APK
+
+Every push to `main` or a `claude/**` branch (and every PR) runs the
+[**Build APK**](.github/workflows/build-apk.yml) GitHub Actions workflow, which assembles the
+debug APK and uploads it as a build artifact named `bmw-f10-coding-debug-apk`. To install it on
+a phone without building locally: open the workflow run in the **Actions** tab → download the
+artifact → unzip → sideload `app-debug.apk` (enable "install from unknown sources" for your
+browser/Files app when prompted). The build is debug-signed — fine for your own device, not for
+distribution.
+
 ### Try it with no hardware
 
 Launch the app → tap the **connection chip** in the top bar (or any Edit screen prompt) →
