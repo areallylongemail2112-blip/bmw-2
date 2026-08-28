@@ -97,7 +97,11 @@ class DemoTransport : EcuTransport {
     private fun negative(sid: Int, nrc: Int): ByteArray =
         byteArrayOf(Uds.NEGATIVE_RESPONSE.toByte(), sid.toByte(), nrc.toByte())
 
-    /** Random-walk the last byte of a live block by ±1 (clamped) so a demo gauge moves. */
+    /**
+     * Nudges the last byte of a live block by ±1 (clamped) around its seeded value on each read,
+     * so a single-byte demo gauge visibly moves. It reads relative to the seed each time (no
+     * persisted drift); multi-byte values move only in their low byte, which is intentional.
+     */
     private fun jitter(block: ByteArray): ByteArray {
         if (block.isEmpty()) return block
         val out = block.copyOf()

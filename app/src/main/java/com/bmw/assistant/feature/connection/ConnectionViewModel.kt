@@ -5,7 +5,6 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.bmw.assistant.BmwAssistantApp
 import com.bmw.assistant.core.ecu.ConnectionManager
-import com.bmw.assistant.core.ecu.ConnectionStatus
 import com.bmw.assistant.core.ecu.EcuTransport
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -21,8 +20,10 @@ class ConnectionViewModel(app: Application) : AndroidViewModel(app) {
     fun connectDemo() {
         viewModelScope.launch {
             ConnectionManager.connectDemo()
-            // Only seed when the demo link actually came up.
-            if (ConnectionManager.current.status != ConnectionStatus.CONNECTED) return@launch
+            // Only seed when the demo link actually came up. Gate on the synchronously-set
+            // transport, not the posted status — LiveData.postValue hasn't been applied on this
+            // thread yet, so current.status would still read CONNECTING here.
+            if (!ConnectionManager.isLive) return@launch
             repo.seedDemoValues()
             withContext(Dispatchers.IO) {
                 val modules = repo.getModules().associateBy { it.id }

@@ -44,6 +44,14 @@ object ConnectionManager {
 
     val current: ConnectionState get() = _state.value ?: ConnectionState()
 
+    /**
+     * True the instant a transport is connected — set synchronously in [connectWith], unlike
+     * [current] whose status arrives via `LiveData.postValue` and isn't visible on the same
+     * thread that awaited the connect. Callers that act immediately after connecting (e.g. demo
+     * seeding) must gate on this, not on `current.status`.
+     */
+    val isLive: Boolean get() = transport?.isConnected == true
+
     /** A coding engine bound to the active transport, or null if not connected. */
     fun codingEngine(): CodingEngine? {
         val t = transport ?: return null

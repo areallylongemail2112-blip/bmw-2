@@ -165,9 +165,12 @@ class DiagnosticsModuleViewModel(app: Application) : AndroidViewModel(app) {
         val m = _module.value ?: return
         val rows = withContext(Dispatchers.IO) {
             val engine = ConnectionManager.diagnosticsEngine() ?: return@withContext null
+            // Open the extended session once for the whole batch, then read each value without
+            // renegotiating it (best-effort: if the open fails, the reads below surface it).
+            runCatching { engine.openSession(m) }
             liveParams.map { p ->
                 val text = try {
-                    engine.readLive(m, p)?.let { p.format(it) } ?: "n/a"
+                    engine.readLive(m, p, openSession = false)?.let { p.format(it) } ?: "n/a"
                 } catch (_: Exception) {
                     "error"
                 }

@@ -29,12 +29,19 @@ class DiagnosticsEngine(transport: EcuTransport) {
         uds.clearDtcs(module.diagAddress)
 
     /**
+     * Opens the extended diagnostic session on [module] once. Call this before a batch of
+     * [readLive] reads with `openSession = false` so the session isn't renegotiated per value.
+     */
+    fun openSession(module: Module) = uds.openExtendedSession(module.diagAddress)
+
+    /**
      * Reads and decodes one live parameter. Returns null if the module's payload was too short
-     * to contain the value.
+     * to contain the value. Pass [openSession] = false when the caller has already opened the
+     * session for a batch of reads (avoids a session-control round-trip per parameter).
      * @throws EcuException on a link error or negative response.
      */
-    fun readLive(module: Module, param: LiveParameter): Double? {
-        val payload = uds.readDataByIdentifier(module.diagAddress, param.dataIdentifier)
+    fun readLive(module: Module, param: LiveParameter, openSession: Boolean = true): Double? {
+        val payload = uds.readDataByIdentifier(module.diagAddress, param.dataIdentifier, openSession)
         return LiveDecoder.decode(param, payload)
     }
 }

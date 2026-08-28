@@ -61,4 +61,24 @@ class DiagnosticsEngineTest {
         assertEquals(89.0, value!!, 0.0001)
         assertEquals("89 °C", coolant.format(value))
     }
+
+    @Test
+    fun readLive_batchAfterOpenSession_readsWithoutReopening() {
+        val transport = FakeTransport()
+        transport.putLive(0x12, 0x4600, byteArrayOf(0x89.toByte())) // 137 -> 89
+        transport.putLive(0x12, 0x4601, byteArrayOf(0x8F.toByte())) // 143 -> 95
+        val engine = DiagnosticsEngine(transport)
+        val coolant = LiveParameter(
+            id = "coolant", moduleId = "dme", name = "Coolant",
+            dataIdentifier = 0x4600, offset = -48.0
+        )
+        val oil = LiveParameter(
+            id = "oil", moduleId = "dme", name = "Oil",
+            dataIdentifier = 0x4601, offset = -48.0
+        )
+
+        engine.openSession(dme)
+        assertEquals(89.0, engine.readLive(dme, coolant, openSession = false)!!, 0.0001)
+        assertEquals(95.0, engine.readLive(dme, oil, openSession = false)!!, 0.0001)
+    }
 }
