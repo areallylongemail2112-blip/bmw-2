@@ -9,15 +9,17 @@ plugins {
 // Release signing credentials are resolved from (in order of precedence):
 //   1. Environment variables  — used by CI (KEYSTORE_FILE, KEYSTORE_PASSWORD, KEY_ALIAS, KEY_PASSWORD)
 //   2. keystore.properties    — an optional, git-ignored file in the repo root for local release builds
-// If no keystore is found, the release build is left unsigned so debug builds and CI without
-// secrets keep working. Never commit a keystore or its passwords.
+// If no keystore is found, release is signed with the debug key so the APK is
+// still installable (CI without secrets, local testing). Never commit a
+// release keystore or its passwords.
 val keystorePropsFile = rootProject.file("keystore.properties")
 val keystoreProps = Properties().apply {
     if (keystorePropsFile.exists()) keystorePropsFile.inputStream().use { load(it) }
 }
 
 fun signingValue(env: String, prop: String): String? =
-    System.getenv(env) ?: keystoreProps.getProperty(prop)
+    System.getenv(env)?.takeIf { it.isNotBlank() }
+        ?: keystoreProps.getProperty(prop)?.takeIf { it.isNotBlank() }
 
 val keystorePath = signingValue("KEYSTORE_FILE", "storeFile")
 val hasReleaseSigning = keystorePath != null && file(keystorePath).exists()
@@ -54,7 +56,14 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
-            signingConfig = if (hasReleaseSigning) signingConfigs.getByName("release") else null
+            // Unsigned APKs cannot be sideloaded. If no release keystore is
+            // configured, sign with the debug key so assembleRelease still
+            // produces an installable APK (CI without secrets, local testing).
+            signingConfig = if (hasReleaseSigning) {
+                signingConfigs.getByName("release")
+            } else {
+                signingConfigs.getByName("debug")
+            }
         }
     }
 
