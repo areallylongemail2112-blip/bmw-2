@@ -40,6 +40,14 @@
       "description": "Manages key fob functions, door lock behavior, and comfort access features.",
       "iconName": "key",
       "diagAddress": 64
+    },
+    {
+      "id": "dme",
+      "name": "DME",
+      "fullName": "Engine Control (Digital Motor Electronics)",
+      "description": "The engine control unit. Source of most live engine data (RPM, temperatures, load) and engine-related fault codes. Diagnostics-only in this app — engine coding is out of scope.",
+      "iconName": "engine",
+      "diagAddress": 18
     }
   ],
   "codings": [

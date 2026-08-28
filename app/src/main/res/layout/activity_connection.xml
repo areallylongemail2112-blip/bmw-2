@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <androidx.coordinatorlayout.widget.CoordinatorLayout
     xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:app="http://schemas.android.com/apk/res/com.bmwf10.coding"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="@color/background">
@@ -72,7 +72,7 @@
                 android:text="Demo mode" />
             <TextView style="@style/CardBody" android:layout_width="match_parent"
                 android:layout_height="wrap_content" android:layout_marginTop="2dp"
-                android:text="Try the whole app with no hardware. Coding changes are simulated against a fake car with realistic current values." />
+                android:text="Try the whole app with no hardware. Coding, fault codes, and live data are all simulated against a fake car with realistic values." />
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/demoButton"
                 android:layout_width="match_parent"
@@ -83,10 +83,10 @@
             <!-- ENET / WiFi -->
             <TextView style="@style/CardTitle" android:layout_width="wrap_content"
                 android:layout_height="wrap_content" android:layout_marginTop="24dp"
-                android:text="ENET / WiFi (coding capable)" />
+                android:text="ENET / WiFi (coding + diagnostics)" />
             <TextView style="@style/CardBody" android:layout_width="match_parent"
                 android:layout_height="wrap_content" android:layout_marginTop="2dp"
-                android:text="Connect to the car over an ENET cable or the gateway's WiFi and enter its IP address. This is the path that can actually write coding to F-series modules (DoIP/UDS)." />
+                android:text="Connect over an ENET cable or the gateway's WiFi and enter its IP address. This is the path that can write coding and read live UDS diagnostics on F-series modules (DoIP/UDS)." />
 
             <com.google.android.material.textfield.TextInputLayout
                 android:layout_width="match_parent"
@@ -125,7 +125,7 @@
                 android:text="Bluetooth OBD adapter" />
             <TextView style="@style/CardBody" android:layout_width="match_parent"
                 android:layout_height="wrap_content" android:layout_marginTop="2dp"
-                android:text="Scan for a BLE OBD dongle. Note: consumer BLE adapters are used for connection/diagnostics only — F-series coding writes go through ENET or demo mode." />
+                android:text="Scan for a BLE OBD dongle. Note: consumer BLE adapters connect and handshake only — module-addressed coding and diagnostics go through ENET or demo mode." />
 
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/scanButton"

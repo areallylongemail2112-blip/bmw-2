@@ -5,11 +5,11 @@ plugins {
 }
 
 android {
-    namespace = "com.bmwf10.coding"
+    namespace = "com.bmw.assistant"
     compileSdk = 34
 
     defaultConfig {
-        applicationId = "com.bmwf10.coding"
+        applicationId = "com.bmw.assistant"
         minSdk = 26
         targetSdk = 34
         versionCode = 1

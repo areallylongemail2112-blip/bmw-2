@@ -13,5 +13,5 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "BMW F10 Coding"
+rootProject.name = "BMW Assistant"
 include(":app")
