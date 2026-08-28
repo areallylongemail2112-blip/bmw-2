@@ -7,6 +7,7 @@ import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.viewModelScope
 import com.bmw.assistant.BmwAssistantApp
 import com.bmw.assistant.core.ecu.ConnectionManager
+import com.bmw.assistant.core.ecu.Hex
 import com.bmw.assistant.data.model.CodingItem
 import com.bmw.assistant.data.model.Module
 import com.bmw.assistant.data.model.ValueType
@@ -115,6 +116,21 @@ class EditCodingViewModel(app: Application) : AndroidViewModel(app) {
                 try {
                     val engine = ConnectionManager.codingEngine()
                         ?: return@withContext ApplyResult.NeedsConnection
+                    // Snapshot the block before modifying it so the exact original bytes can
+                    // be restored from the Backups screen. A failed snapshot aborts the write.
+                    c.ecuMap?.let { map ->
+                        val before = engine.readBlock(m, map.dataIdentifier)
+                        if (before.isNotEmpty()) {
+                            repo.addBackupIfChanged(
+                                module = m,
+                                dataIdentifier = map.dataIdentifier,
+                                blockHex = Hex.encodeCompact(before),
+                                label = "Before editing “${c.name}”",
+                                source = ConnectionManager.backupSource(),
+                                connectionLabel = ConnectionManager.current.label
+                            )
+                        }
+                    }
                     val rawByte = engine.applyCoding(m, c, newValue)
                     repo.setValue(c.id, newValue)
                     ApplyResult.Success(

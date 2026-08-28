@@ -54,3 +54,22 @@ data class CodingValueEntity(
     val value: String,
     val updatedAt: Long
 )
+
+/**
+ * Room copy of a [com.bmw.assistant.data.model.CodingBackup]: the raw bytes of one module
+ * coding block captured before a write, so the exact original data can be restored.
+ * [source] is the [com.bmw.assistant.data.model.BackupSource] name (DEMO / HARDWARE).
+ */
+@Entity(tableName = "coding_backups")
+data class CodingBackupEntity(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val moduleId: String,
+    val moduleName: String,
+    val diagAddress: Int,
+    val dataIdentifier: Int,
+    val blockHex: String,
+    val label: String,
+    val source: String,
+    val connectionLabel: String?,
+    val createdAt: Long
+)

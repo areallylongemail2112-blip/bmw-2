@@ -68,6 +68,33 @@ class CodingEngine(private val transport: EcuTransport, private val isDemo: Bool
         return merged.toByte()
     }
 
+    /**
+     * Reads the raw bytes of one coding block — used to capture a backup before a write.
+     * @throws EcuException if the transport cannot read coding data.
+     */
+    fun readBlock(module: Module, dataIdentifier: Int): ByteArray {
+        if (!transport.supportsCoding) {
+            throw EcuException("The active connection cannot read coding data. Use ENET or demo mode.")
+        }
+        return uds.readDataByIdentifier(module.diagAddress, dataIdentifier)
+    }
+
+    /**
+     * Writes a previously captured coding block back to the module — the restore path.
+     *
+     * Unlike [applyCoding] this does not require a verified map: the bytes being written are
+     * exactly what was read from this same kind of source earlier, so no fabricated offsets
+     * are involved. Callers are responsible for matching backup source to connection type
+     * (demo backups must never be pushed to real hardware).
+     */
+    fun restoreBlock(module: Module, dataIdentifier: Int, block: ByteArray) {
+        if (!transport.supportsCoding) {
+            throw EcuException("The active connection cannot write coding data. Use ENET or demo mode.")
+        }
+        if (block.isEmpty()) throw EcuException("Backup block is empty — nothing to restore.")
+        uds.writeDataByIdentifier(module.diagAddress, dataIdentifier, block)
+    }
+
     /** Reads the current byte for a coding and decodes it back to a friendly value. */
     fun readCoding(module: Module, coding: CodingItem): String? {
         val map = coding.ecuMap ?: return null

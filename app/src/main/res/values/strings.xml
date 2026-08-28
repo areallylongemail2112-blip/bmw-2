@@ -7,4 +7,10 @@
     <string name="scan_ble">Scan for BLE adapters</string>
     <string name="disconnect">Disconnect</string>
     <string name="apply_coding">Apply coding</string>
+    <string name="backups_title">Backups</string>
+    <string name="backups_subtitle">Restore points captured before coding changes</string>
+    <string name="backups_empty">No backups yet.\nA backup of a module\u2019s coding block is saved automatically before each change.</string>
+    <string name="backups_new">Back up all</string>
+    <string name="backups_restore">Restore</string>
+    <string name="backups_delete">Delete</string>
 </resources>

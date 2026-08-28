@@ -5,7 +5,9 @@ import android.os.Bundle
 import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
 import androidx.recyclerview.widget.GridLayoutManager
+import com.bmw.assistant.R
 import com.bmw.assistant.databinding.ActivityCodingModulesBinding
+import com.bmw.assistant.feature.backups.BackupsActivity
 import com.bmw.assistant.ui.common.ConnectionBadge
 
 /** Coding module picker — a card grid of every module that has coding features. */
@@ -20,6 +22,16 @@ class CodingModulesActivity : AppCompatActivity() {
         setContentView(binding.root)
 
         binding.toolbar.setNavigationOnClickListener { finish() }
+        binding.toolbar.inflateMenu(R.menu.coding_modules_menu)
+        binding.toolbar.setOnMenuItemClickListener { item ->
+            when (item.itemId) {
+                R.id.action_backups -> {
+                    startActivity(Intent(this, BackupsActivity::class.java))
+                    true
+                }
+                else -> false
+            }
+        }
         ConnectionBadge.bind(binding.connectionChip, this, this)
 
         val adapter = ModuleAdapter { card ->

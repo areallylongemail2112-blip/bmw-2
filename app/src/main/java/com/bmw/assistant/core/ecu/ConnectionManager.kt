@@ -5,6 +5,8 @@ import androidx.lifecycle.MutableLiveData
 import com.bmw.assistant.core.coding.CodingEngine
 import com.bmw.assistant.core.diagnostics.DiagnosticsEngine
 import com.bmw.assistant.core.ecu.uds.Doip
+import com.bmw.assistant.data.model.BackupSource
+import com.bmw.assistant.data.model.CodingBackup
 import com.bmw.assistant.data.model.CodingItem
 import com.bmw.assistant.data.model.DemoFault
 import com.bmw.assistant.data.model.LiveParameter
@@ -108,6 +110,40 @@ object ConnectionManager {
      */
     fun readValue(module: Module, coding: CodingItem): String? =
         codingEngine()?.readCoding(module, coding)
+
+    /** Backup source matching the active connection (demo vs. real hardware). */
+    fun backupSource(): BackupSource =
+        if (current.isDemo) BackupSource.DEMO else BackupSource.HARDWARE
+
+    /**
+     * Reads the raw bytes of one module coding block for a backup snapshot.
+     * Must be called off the main thread.
+     * @throws EcuException when not connected or the transport cannot read coding data.
+     */
+    fun readBlock(module: Module, dataIdentifier: Int): ByteArray {
+        val engine = codingEngine() ?: throw EcuException("Not connected")
+        return engine.readBlock(module, dataIdentifier)
+    }
+
+    /**
+     * Writes [backup]'s saved bytes back to its module. Must be called off the main thread.
+     *
+     * Safety gate: a backup can only be restored onto the same kind of connection it was
+     * captured from — demo snapshots never reach a real car, and hardware snapshots are not
+     * pushed into the simulator.
+     */
+    fun restoreBackup(module: Module, backup: CodingBackup) {
+        val engine = codingEngine() ?: throw EcuException("Not connected")
+        if (backup.source != backupSource()) {
+            throw EcuException(
+                if (backup.source == BackupSource.DEMO)
+                    "This backup was captured in demo mode and cannot be written to a real car."
+                else
+                    "This backup was captured from real hardware and cannot be restored in demo mode."
+            )
+        }
+        engine.restoreBlock(module, backup.dataIdentifier, Hex.decode(backup.blockHex))
+    }
 
     /**
      * Primes [DemoTransport] state so a subsequent read matches what the UI shows: coding

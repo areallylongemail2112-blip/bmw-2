@@ -46,5 +46,6 @@
         <activity android:name=".feature.diagnostics.DiagnosticsModulesActivity" android:exported="false" />
         <activity android:name=".feature.diagnostics.DiagnosticsModuleActivity" android:exported="false" />
         <activity android:name=".feature.connection.ConnectionActivity" android:exported="false" />
+        <activity android:name=".feature.backups.BackupsActivity" android:exported="false" />
     </application>
 </manifest>

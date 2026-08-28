@@ -127,6 +127,59 @@ Then:
 
 Or open the folder in Android Studio (Giraffe or newer) and Run.
 
+### Download a prebuilt APK
+
+Every push to `main` (and every PR) runs the
+[**Android CI**](.github/workflows/android.yml) GitHub Actions workflow, which assembles the
+debug APK, runs the unit tests, and uploads the APK as a build artifact named
+`bmw-assistant-debug-apk`. To install it on
+a phone without building locally: open the workflow run in the **Actions** tab → download the
+artifact → unzip → sideload `app-debug.apk` (enable "install from unknown sources" for your
+browser/Files app when prompted). The build is debug-signed — fine for your own device, not for
+distribution.
+
+### Release signing
+
+A **signed release APK** (`bmw-assistant-release-apk` artifact) is produced by the
+[**Release APK**](.github/workflows/build-apk.yml) workflow
+on tag pushes matching `v*` and on manual **Run workflow** dispatch. Signing credentials come from
+environment variables at build time, so nothing secret lives in the repo.
+
+**One-time setup — generate a keystore** (keep the `.jks` file and its passwords somewhere safe;
+losing them means you can never ship an update that overwrites an install):
+
+```bash
+keytool -genkeypair -v -keystore release.jks -alias bmwf10 \
+  -keyalg RSA -keysize 2048 -validity 10000
+```
+
+**Add the credentials as GitHub Actions secrets** (repo → Settings → Secrets and variables →
+Actions):
+
+| Secret | Value |
+| --- | --- |
+| `RELEASE_KEYSTORE_BASE64` | `base64 -w0 release.jks` (the keystore, base64-encoded) |
+| `RELEASE_KEYSTORE_PASSWORD` | the store password |
+| `RELEASE_KEY_ALIAS` | the key alias (e.g. `bmwf10`) |
+| `RELEASE_KEY_PASSWORD` | the key password |
+
+Then push a tag (`git tag v1.0.0 && git push origin v1.0.0`) or run the workflow manually; download
+`app-release.apk` from the run's artifacts. The `release` job fails fast with a clear message if the
+keystore secret is missing.
+
+**Building a signed release locally** — instead of the CI secrets, drop a git-ignored
+`keystore.properties` in the repo root:
+
+```
+storeFile=/absolute/path/to/release.jks
+storePassword=…
+keyAlias=bmwf10
+keyPassword=…
+```
+
+Then `./gradlew assembleRelease`. Without any keystore configured, the release build still succeeds
+but is left **unsigned** (installable only via `adb install` for testing).
+
 ### Try it with no hardware
 
 Launch → tap the **connection chip** (or the **Connection** card) → **Start demo mode**. The app
@@ -154,6 +207,15 @@ The home screen is a hub with two paths plus connection.
    confirmation).
 3. **Live data** — read current sensor values once with **Refresh**, or flip **Auto** to poll
    continuously while the screen is open.
+
+**Backups (restore points)**
+1. A snapshot of a module's coding block is captured automatically right before every coding
+   write, so the exact original bytes can always be restored. The **Backups** screen (toolbar
+   icon on the coding module grid) also offers **Back up all** for a manual snapshot.
+2. **Restore** writes the saved bytes back to the module after a confirmation that shows the
+   exact bytes. A backup can only be restored onto the same kind of connection it was captured
+   from — demo snapshots never reach a real car, and hardware snapshots are never pushed into
+   the simulator.
 
 A connection status chip is visible on every screen; the ViewModels block any read/write unless a
 connection is live.

@@ -6,6 +6,7 @@ import com.bmw.assistant.data.model.CodingItem
 import com.bmw.assistant.data.model.EcuMap
 import com.bmw.assistant.data.model.Module
 import com.bmw.assistant.data.model.ValueType
+import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
@@ -115,6 +116,46 @@ class CodingEngineTest {
             engine.applyCoding(module, item, "1")
         }
         assertTrue(ex.message!!.contains("outside"))
+    }
+
+    @Test
+    fun restoreBlock_writesExactBytesBack() {
+        val transport = FakeTransport()
+        val original = byteArrayOf(0x18, 0x03, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00)
+        transport.putCoding(0x72, 0x3000, original)
+        val engine = CodingEngine(transport, isDemo = true)
+
+        // Capture, then mutate the block via a coding write.
+        val backup = engine.readBlock(module, 0x3000)
+        val item = coding(
+            ValueType.INTEGER,
+            EcuMap(dataIdentifier = 0x3000, byteOffset = 0, bitMask = 0xFF, verified = true)
+        )
+        engine.applyCoding(module, item, "255")
+        assertEquals(0xFF, transport.getCoding(0x72, 0x3000)!![0].toInt() and 0xFF)
+
+        // Restoring the captured bytes returns the block to its original state.
+        engine.restoreBlock(module, 0x3000, backup)
+        assertArrayEquals(original, transport.getCoding(0x72, 0x3000))
+    }
+
+    @Test
+    fun restoreBlock_refusedOnNonCodingTransport() {
+        val transport = FakeTransport(supportsCoding = false)
+        val engine = CodingEngine(transport, isDemo = false)
+        val ex = assertThrows(EcuException::class.java) {
+            engine.restoreBlock(module, 0x3000, byteArrayOf(0x01, 0x02))
+        }
+        assertTrue(ex.message!!.contains("cannot write"))
+    }
+
+    @Test
+    fun restoreBlock_rejectsEmptyBackup() {
+        val engine = CodingEngine(FakeTransport(), isDemo = true)
+        val ex = assertThrows(EcuException::class.java) {
+            engine.restoreBlock(module, 0x3000, ByteArray(0))
+        }
+        assertTrue(ex.message!!.contains("empty"))
     }
 
     @Test
