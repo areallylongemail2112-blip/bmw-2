@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:gravity="center_vertical"
+    android:orientation="horizontal"
+    android:paddingVertical="10dp">
+
+    <LinearLayout
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:orientation="vertical">
+
+        <TextView
+            android:id="@+id/liveName"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textColor="@color/on_surface"
+            android:textStyle="bold"
+            android:textSize="15sp"
+            tools:text="Coolant temperature" />
+
+        <TextView
+            android:id="@+id/liveDescription"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:textAppearance="@style/CardBody"
+            android:textSize="12sp"
+            tools:text="Engine coolant temperature from the DME." />
+    </LinearLayout>
+
+    <TextView
+        android:id="@+id/liveValue"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="12dp"
+        android:textColor="@color/primary"
+        android:textStyle="bold"
+        android:textSize="18sp"
+        tools:text="89 °C" />
+</LinearLayout>

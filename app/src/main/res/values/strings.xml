@@ -1,10 +1,16 @@
 <resources>
-    <string name="app_name">BMW F10 Coding</string>
-    <string name="home_title">Select a Module</string>
-    <string name="home_subtitle">BMW F10 (5 Series) coding assistant</string>
+    <string name="app_name">BMW Assistant</string>
+    <string name="home_title">What do you want to do?</string>
+    <string name="home_subtitle">Code features or run diagnostics on your BMW F10 (5 Series).</string>
     <string name="connection_title">Connection</string>
     <string name="demo_mode">Demo Mode</string>
     <string name="scan_ble">Scan for BLE adapters</string>
     <string name="disconnect">Disconnect</string>
     <string name="apply_coding">Apply coding</string>
+    <string name="backups_title">Backups</string>
+    <string name="backups_subtitle">Restore points captured before coding changes</string>
+    <string name="backups_empty">No backups yet.\nA backup of a module\u2019s coding block is saved automatically before each change.</string>
+    <string name="backups_new">Back up all</string>
+    <string name="backups_restore">Restore</string>
+    <string name="backups_delete">Delete</string>
 </resources>

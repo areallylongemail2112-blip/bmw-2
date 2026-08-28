@@ -1,0 +1,140 @@
+{
+  "_comment": "BMW F10 diagnostics definitions. liveData maps a UDS DID to a physical value (raw*scale+offset over byteLength bytes, big-endian). dtcCatalog gives plain-English text for a fault's high-16-bit code. demoFaults are the codes the offline demo transport pretends each module has stored. As with the coding maps, the DIDs/scales are ILLUSTRATIVE and drive demo mode; real DIDs vary by ECU and I-level. dataIdentifier is decimal (JSON has no hex): 17920 = 0x4600.",
+  "liveData": [
+    {
+      "id": "dme_coolant_temp",
+      "moduleId": "dme",
+      "name": "Coolant temperature",
+      "description": "Engine coolant temperature from the DME.",
+      "dataIdentifier": 17920,
+      "byteLength": 1,
+      "scale": 1.0,
+      "offset": -48.0,
+      "unit": "°C",
+      "min": -48.0,
+      "max": 143.0,
+      "demoRaw": "89"
+    },
+    {
+      "id": "dme_oil_temp",
+      "moduleId": "dme",
+      "name": "Oil temperature",
+      "description": "Engine oil temperature. Wait for ~80 °C before driving hard.",
+      "dataIdentifier": 17921,
+      "byteLength": 1,
+      "scale": 1.0,
+      "offset": -48.0,
+      "unit": "°C",
+      "min": -48.0,
+      "max": 160.0,
+      "demoRaw": "8F"
+    },
+    {
+      "id": "dme_intake_temp",
+      "moduleId": "dme",
+      "name": "Intake air temperature",
+      "description": "Temperature of the air entering the engine.",
+      "dataIdentifier": 17922,
+      "byteLength": 1,
+      "scale": 1.0,
+      "offset": -48.0,
+      "unit": "°C",
+      "demoRaw": "4E"
+    },
+    {
+      "id": "dme_ambient_temp",
+      "moduleId": "dme",
+      "name": "Ambient temperature",
+      "description": "Outside air temperature sensor.",
+      "dataIdentifier": 17923,
+      "byteLength": 1,
+      "scale": 1.0,
+      "offset": -48.0,
+      "unit": "°C",
+      "demoRaw": "46"
+    },
+    {
+      "id": "dme_rpm",
+      "moduleId": "dme",
+      "name": "Engine speed",
+      "description": "Crankshaft speed (RPM = raw / 4).",
+      "dataIdentifier": 17936,
+      "byteLength": 2,
+      "scale": 0.25,
+      "offset": 0.0,
+      "unit": "rpm",
+      "min": 0.0,
+      "max": 7000.0,
+      "demoRaw": "0CD0"
+    },
+    {
+      "id": "dme_speed",
+      "moduleId": "dme",
+      "name": "Vehicle speed",
+      "description": "Road speed as reported by the DME.",
+      "dataIdentifier": 17937,
+      "byteLength": 1,
+      "scale": 1.0,
+      "offset": 0.0,
+      "unit": "km/h",
+      "min": 0.0,
+      "max": 260.0,
+      "demoRaw": "00"
+    },
+    {
+      "id": "dme_load",
+      "moduleId": "dme",
+      "name": "Engine load",
+      "description": "Calculated engine load (0–100%).",
+      "dataIdentifier": 17938,
+      "byteLength": 1,
+      "scale": 0.392156,
+      "offset": 0.0,
+      "unit": "%",
+      "min": 0.0,
+      "max": 100.0,
+      "demoRaw": "2E"
+    },
+    {
+      "id": "dme_battery_voltage",
+      "moduleId": "dme",
+      "name": "Battery voltage",
+      "description": "Terminal 30 supply voltage.",
+      "dataIdentifier": 17952,
+      "byteLength": 2,
+      "scale": 0.001,
+      "offset": 0.0,
+      "unit": "V",
+      "decimals": 1,
+      "min": 9.0,
+      "max": 15.5,
+      "demoRaw": "3714"
+    },
+    {
+      "id": "kombi_fuel_level",
+      "moduleId": "kombi",
+      "name": "Fuel level",
+      "description": "Tank level as a percentage, from the instrument cluster.",
+      "dataIdentifier": 17968,
+      "byteLength": 1,
+      "scale": 0.392156,
+      "offset": 0.0,
+      "unit": "%",
+      "min": 0.0,
+      "max": 100.0,
+      "demoRaw": "A3"
+    }
+  ],
+  "dtcCatalog": [
+    { "code": "2C6A", "description": "Boost pressure control: positive deviation (charge air below target)." },
+    { "code": "29E3", "description": "Oxygen sensor, bank 1 before catalyst: signal implausible." },
+    { "code": "A0B4", "description": "Front cornering light: open circuit or short to ground." },
+    { "code": "4B15", "description": "Supply voltage: too low during operation." },
+    { "code": "D35A", "description": "Instrument cluster: communication timeout with a bus node." }
+  ],
+  "demoFaults": [
+    { "moduleId": "dme", "dtc": "2C6A08", "status": 9 },
+    { "moduleId": "dme", "dtc": "29E300", "status": 8 },
+    { "moduleId": "frm", "dtc": "A0B412", "status": 9 }
+  ]
+}
