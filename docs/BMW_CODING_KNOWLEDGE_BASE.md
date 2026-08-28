@@ -277,3 +277,37 @@ The F10 is a FlexRay/CAN car with a central gateway (**ZGW**). Common codeable m
   real hardware.
 
 See `README.md` for how to connect each adapter type and how to add or verify coding entries.
+
+---
+
+## 5. Diagnostics (reading what the car is doing)
+
+The app also covers the *read-only* side that tools like BimmerLink focus on. This rides the same
+UDS-over-DoIP transport as coding — no new protocol, just different services.
+
+### 5.1 Fault codes (DTCs)
+
+- **Read:** UDS `ReadDTCInformation` (`0x19`), sub-function `reportDTCByStatusMask` (`0x02`) with a
+  status mask of `0xFF` to list everything. The response is `59 02 <availabilityMask>` followed by
+  records of **3 bytes of DTC + 1 status byte**.
+- **Clear:** UDS `ClearDiagnosticInformation` (`0x14`) with a 3-byte group-of-DTC (`0xFFFFFF` =
+  all). This is standard and reversible — codes for faults still present simply reappear — so it is
+  allowed on real hardware, behind a confirmation dialog.
+- **Codes:** BMW modules number faults in their own space, so the raw 24-bit hex code is the most
+  reliable identifier. The app also renders the ISO 15031-6 / SAE J2012 form (letter + 4 hex digits,
+  e.g. `P2C6A`) from the first two bytes for familiarity, and looks up a plain-English description
+  from a small catalog keyed on the high 16 bits.
+
+### 5.2 Live data (measurement values)
+
+- **Read:** UDS `ReadDataByIdentifier` (`0x22 <DID>`), then decode the payload as
+  `raw * scale + offset` over a 1- or 2-byte big-endian window. Typical values: coolant/oil/intake
+  temperature (`raw − 48` °C), engine RPM (`raw / 4`), vehicle speed, battery voltage, engine load,
+  fuel level.
+- Most engine live data comes from the **DME**; the app defines these per module in
+  `diagnostics_f10.json`.
+
+> As with the coding maps, the exact DIDs and scaling vary by ECU and I-level and are BMW
+> proprietary. The values shipped in the asset are **illustrative** and drive the offline demo
+> transport; matching them to a specific car is the same exercise as verifying a coding map.
+
