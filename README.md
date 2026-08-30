@@ -17,6 +17,7 @@ connection.
 > diagnostics) sharing one transport/UDS core.
 
 - **Phase 1 research / knowledge base:** [`docs/BMW_CODING_KNOWLEDGE_BASE.md`](docs/BMW_CODING_KNOWLEDGE_BASE.md)
+- **Service functions** — oil / brake CBS reset and battery registration (data-driven UDS routines; illustrative maps, same verified-gate as coding)
 
 ### A note on BimmerCode / BimmerLink / BimmerTool
 
@@ -58,7 +59,7 @@ module's original bytes before changing them, and keep the battery charged.
 | Language / UI | **Kotlin + Views + ViewBinding** (no Compose) | Lightweight; keeps the focus on the transport layer. |
 | Pattern | **MVVM** | ViewModels own state and enforce the connection guard so no screen can write/read without a live link. |
 | Persistence | **Room** (coding) + **in-memory** (diagnostics defs) | Coding modules/values are stored locally and offline; diagnostics definitions are read-only, loaded from a JSON asset. |
-| Transport | **`EcuTransport.transceive(diagAddress, udsRequest)`** | A dumb UDS pipe. `DemoTransport` (offline sim), `EnetDoipTransport` (real DoIP/UDS), `BleObdTransport` (connect/handshake). |
+| Transport | **`EcuTransport.transceive(diagAddress, udsRequest)`** | A dumb UDS pipe. `DemoTransport` (offline sim), `EnetDoipTransport` (real DoIP/UDS), `BleObdTransport` (handshake only). TesterPresent keepalive + optional SecurityAccess (pluggable seed-to-key; no BMW algorithm is shipped). |
 | Protocol | **`UdsClient`** | One place that sequences sessions and turns negative responses into readable errors. Both engines build on it. |
 | Coding | **`CodingEngine`** | Read-modify-write of one coding byte, with the verified-map safety gate. |
 | Diagnostics | **`DiagnosticsEngine`** | Fault read/clear (UDS 0x19/0x14) and live-value read/decode (UDS 0x22). |
@@ -75,7 +76,7 @@ minSdk 26 · targetSdk/compileSdk 34 · Java 17 · single APK.
    └─ src/main/
       ├─ AndroidManifest.xml                      # INTERNET + BLE perms, 7 activities
       ├─ assets/
-      │  ├─ codings_f10.json                      # coding definitions (26 codings / 5 modules)
+      │  ├─ codings_f10.json                      # coding definitions (37+ codings / 6 modules)
       │  └─ diagnostics_f10.json                  # live params + DTC catalog + demo faults
       ├─ res/                                      # layouts, drawables, theme
       └─ java/com/bmw/assistant/
@@ -214,12 +215,21 @@ The home screen is a hub with two paths plus connection.
 
 **Backups (restore points)**
 1. A snapshot of a module's coding block is captured automatically right before every coding
-   write, so the exact original bytes can always be restored. The **Backups** screen (toolbar
-   icon on the coding module grid) also offers **Back up all** for a manual snapshot.
+   write, so the exact original bytes can always be restored. The **Backups** screen (home card
+   and the toolbar icon on the coding module grid) also offers **Back up all** and **Export**.
 2. **Restore** writes the saved bytes back to the module after a confirmation that shows the
    exact bytes. A backup can only be restored onto the same kind of connection it was captured
    from — demo snapshots never reach a real car, and hardware snapshots are never pushed into
-   the simulator.
+   the simulator. Backups are tagged with VIN / I-level when the car was identified.
+
+**Coding values are labelled by source** — *From car*, *Local cache*, or *Default*. Opening a
+module (or tapping **Read from car**) decodes the live coding block. Apply is disabled until a
+successful ECU read so you never edit a stale default. Import a verified-map JSON from the
+coding overflow menu. Bump `assetVersion` in the bundled JSON to re-seed Room without wiping
+the app.
+
+On connect the app reads VIN (`0xF190`), probes known modules, and starts a TesterPresent
+keepalive. BLE remains handshake-only.
 
 A connection status chip is visible on every screen; the ViewModels block any read/write unless a
 connection is live.
@@ -349,9 +359,10 @@ clear app storage (or bump `AppDatabase` version) so it re-seeds.
 
 ## Notes / limitations
 
-- The bundled coding maps and diagnostics DIDs are illustrative; treat them as templates, not truth.
-- `EnetDoipTransport` implements DoIP routing activation + UDS session/RDBI/WDBI/ReadDTC/ClearDTC.
-  Some modules additionally require **SecurityAccess (0x27)** before a coding write; add a seed/key
-  exchange there if your target module demands it.
-- This app does **coding and diagnostics only** — it never programs or flashes firmware.
+- The bundled coding maps, diagnostics DIDs, and service routine IDs are illustrative; treat them as templates, not truth.
+- `EnetDoipTransport` implements DoIP routing activation + UDS session/RDBI/WDBI/ReadDTC/ClearDTC
+  plus TesterPresent keepalive. Modules that require **SecurityAccess (0x27)** will request a seed
+  and call a registered `SecurityKeyProvider`. This repo ships only a demo XOR provider — not a
+  BMW seed-to-key algorithm. Hardware writes still need `verified: true` maps.
+- This app does **coding, diagnostics, and data-driven service routines only** — it never programs or flashes firmware.
 - Live-data DIDs are read one at a time; the demo transport adds mild jitter so gauges look alive.

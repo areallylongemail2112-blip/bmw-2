@@ -5,6 +5,8 @@ import androidx.lifecycle.MutableLiveData
 import com.bmw.assistant.core.coding.CodingEngine
 import com.bmw.assistant.core.diagnostics.DiagnosticsEngine
 import com.bmw.assistant.core.ecu.uds.Doip
+import com.bmw.assistant.core.ecu.uds.Uds
+import com.bmw.assistant.core.service.ServiceEngine
 import com.bmw.assistant.data.model.BackupSource
 import com.bmw.assistant.data.model.CodingBackup
 import com.bmw.assistant.data.model.CodingItem
@@ -12,7 +14,13 @@ import com.bmw.assistant.data.model.DemoFault
 import com.bmw.assistant.data.model.LiveParameter
 import com.bmw.assistant.data.model.Module
 import com.bmw.assistant.data.model.ValueType
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 enum class ConnectionType { DEMO, WIFI_ENET, BLE }
@@ -22,7 +30,8 @@ data class ConnectionState(
     val type: ConnectionType? = null,
     val status: ConnectionStatus = ConnectionStatus.DISCONNECTED,
     val label: String? = null,
-    val message: String? = null
+    val message: String? = null,
+    val identity: VehicleIdentity? = null
 ) {
     val isConnected get() = status == ConnectionStatus.CONNECTED
     val isDemo get() = type == ConnectionType.DEMO
@@ -43,8 +52,20 @@ object ConnectionManager {
     val state: LiveData<ConnectionState> = _state
 
     @Volatile private var transport: EcuTransport? = null
+    @Volatile private var connectionType: ConnectionType? = null
+    @Volatile private var lastState: ConnectionState = ConnectionState()
+    @Volatile var keyProvider: SecurityKeyProvider? = null
 
-    val current: ConnectionState get() = _state.value ?: ConnectionState()
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    private var keepAliveJob: Job? = null
+    @Volatile private var keepAliveAddress: Int = 0x10
+
+    val current: ConnectionState get() = lastState
+
+    private fun publish(state: ConnectionState) {
+        lastState = state
+        _state.postValue(state)
+    }
 
     /**
      * True the instant a transport is connected — set synchronously in [connectWith], unlike
@@ -54,11 +75,14 @@ object ConnectionManager {
      */
     val isLive: Boolean get() = transport?.isConnected == true
 
+    private fun isDemoNow(): Boolean = connectionType == ConnectionType.DEMO
+
     /** A coding engine bound to the active transport, or null if not connected. */
     fun codingEngine(): CodingEngine? {
         val t = transport ?: return null
         if (!t.isConnected) return null
-        return CodingEngine(t, current.isDemo)
+        val provider = if (isDemoNow()) XorSecurityKeyProvider else keyProvider
+        return CodingEngine(t, isDemoNow(), provider)
     }
 
     /** A diagnostics engine bound to the active transport, or null if not connected/capable. */
@@ -66,6 +90,12 @@ object ConnectionManager {
         val t = transport ?: return null
         if (!t.isConnected || !t.supportsDiagnostics) return null
         return DiagnosticsEngine(t)
+    }
+
+    fun serviceEngine(): ServiceEngine? {
+        val t = transport ?: return null
+        if (!t.isConnected || !t.supportsDiagnostics) return null
+        return ServiceEngine(t, isDemoNow())
     }
 
     /** Active demo transport when connected in demo mode, otherwise null. */
@@ -83,25 +113,80 @@ object ConnectionManager {
 
     private suspend fun connectWith(type: ConnectionType, label: String, t: EcuTransport) {
         disconnect()
-        _state.postValue(ConnectionState(type, ConnectionStatus.CONNECTING, label))
+        publish(ConnectionState(type, ConnectionStatus.CONNECTING, label))
         try {
             withContext(Dispatchers.IO) { t.connect() }
             transport = t
-            _state.postValue(ConnectionState(type, ConnectionStatus.CONNECTED, label))
+            connectionType = type
+            publish(ConnectionState(type, ConnectionStatus.CONNECTED, label))
+            startKeepAlive()
         } catch (e: Exception) {
             runCatching { t.disconnect() }
             transport = null
-            _state.postValue(
+            connectionType = null
+            publish(
                 ConnectionState(type, ConnectionStatus.ERROR, label, e.message ?: "Connection failed")
             )
         }
     }
 
     fun disconnect() {
+        stopKeepAlive()
         val t = transport
         transport = null
+        connectionType = null
         runCatching { t?.disconnect() }
-        _state.postValue(ConnectionState())
+        publish(ConnectionState())
+    }
+
+    /**
+     * Probe VIN, I-level, and which known modules answer session control. Updates [state].
+     * Must be called off the main thread after a successful connect.
+     */
+    fun identifyVehicle(modules: List<Module>): VehicleIdentity {
+        val t = transport ?: return VehicleIdentity()
+        val uds = UdsClient(t)
+        val probeOrder = listOfNotNull(
+            modules.firstOrNull { it.id == "cas" }?.diagAddress,
+            modules.firstOrNull { it.id == "dme" }?.diagAddress,
+            modules.firstOrNull()?.diagAddress,
+            0x10
+        ).distinct()
+
+        val vin = probeOrder.firstNotNullOfOrNull { addr ->
+            runCatching {
+                String(uds.readDataByIdentifier(addr, Uds.DID_VIN), Charsets.US_ASCII)
+                    .trim { it <= ' ' || it.code == 0 }
+                    .takeIf { it.length in 11..20 && it.all { ch -> ch.isLetterOrDigit() } }
+            }.getOrNull()
+        }
+        val iLevel = probeOrder.firstNotNullOfOrNull { addr ->
+            runCatching {
+                String(uds.readDataByIdentifier(addr, Uds.DID_I_LEVEL, openSession = false), Charsets.US_ASCII)
+                    .trim { it <= ' ' || it.code == 0 }
+                    .takeIf { it.isNotBlank() }
+            }.getOrNull()
+        }
+
+        val present = linkedSetOf<String>()
+        for (module in modules) {
+            val ok = runCatching {
+                uds.openExtendedSession(module.diagAddress)
+                true
+            }.getOrDefault(false)
+            if (ok) present.add(module.id)
+        }
+
+        keepAliveAddress = modules.firstOrNull { it.id in present }?.diagAddress ?: 0x10
+
+        val identity = VehicleIdentity(
+            vin = vin,
+            iLevel = iLevel,
+            presentModuleIds = present,
+            probeComplete = true
+        )
+        publish(lastState.copy(identity = identity))
+        return identity
     }
 
     /**
@@ -113,7 +198,7 @@ object ConnectionManager {
 
     /** Backup source matching the active connection (demo vs. real hardware). */
     fun backupSource(): BackupSource =
-        if (current.isDemo) BackupSource.DEMO else BackupSource.HARDWARE
+        if (isDemoNow() || current.isDemo) BackupSource.DEMO else BackupSource.HARDWARE
 
     /**
      * Reads the raw bytes of one module coding block for a backup snapshot.
@@ -134,14 +219,9 @@ object ConnectionManager {
      */
     fun restoreBackup(module: Module, backup: CodingBackup) {
         val engine = codingEngine() ?: throw EcuException("Not connected")
-        if (backup.source != backupSource()) {
-            throw EcuException(
-                if (backup.source == BackupSource.DEMO)
-                    "This backup was captured in demo mode and cannot be written to a real car."
-                else
-                    "This backup was captured from real hardware and cannot be restored in demo mode."
-            )
-        }
+        com.bmw.assistant.core.coding.BackupSafety.refuseReason(
+            backup, backupSource(), current.identity?.vin
+        )?.let { throw EcuException(it) }
         engine.restoreBlock(module, backup.dataIdentifier, Hex.decode(backup.blockHex))
     }
 
@@ -193,6 +273,23 @@ object ConnectionManager {
         }
     }
 
+    private fun startKeepAlive() {
+        stopKeepAlive()
+        keepAliveJob = scope.launch {
+            while (isActive) {
+                delay(KEEPALIVE_MS)
+                val t = transport ?: break
+                if (!t.isConnected) break
+                runCatching { UdsClient(t).testerPresent(keepAliveAddress) }
+            }
+        }
+    }
+
+    private fun stopKeepAlive() {
+        keepAliveJob?.cancel()
+        keepAliveJob = null
+    }
+
     private fun encodeForSeed(
         coding: CodingItem,
         bitMask: Int,
@@ -217,4 +314,6 @@ object ConnectionManager {
             }
         }
     }
+
+    private const val KEEPALIVE_MS = 2000L
 }

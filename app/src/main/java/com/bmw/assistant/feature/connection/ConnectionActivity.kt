@@ -10,14 +10,16 @@ import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import androidx.recyclerview.widget.LinearLayoutManager
+import com.bmw.assistant.R
 import com.bmw.assistant.core.ecu.ConnectionStatus
 import com.bmw.assistant.core.ecu.ble.BleDevice
 import com.bmw.assistant.core.ecu.ble.BleObdTransport
 import com.bmw.assistant.core.ecu.ble.BleScanner
 import com.bmw.assistant.databinding.ActivityConnectionBinding
+import com.bmw.assistant.ui.common.ConnectionBadge
 import com.google.android.material.snackbar.Snackbar
 
-/** Choose how to connect: ENET/WiFi, BLE scan, or demo mode. */
+/** Choose how to connect: ENET/WiFi, BLE handshake, or demo mode. */
 class ConnectionActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityConnectionBinding
@@ -31,7 +33,7 @@ class ConnectionActivity : AppCompatActivity() {
         ActivityResultContracts.RequestMultiplePermissions()
     ) { grants ->
         if (grants.values.all { it }) startScan()
-        else snack("Bluetooth permission is required to scan for OBD adapters.")
+        else snack(getString(R.string.ble_permission_required))
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -39,6 +41,7 @@ class ConnectionActivity : AppCompatActivity() {
         binding = ActivityConnectionBinding.inflate(layoutInflater)
         setContentView(binding.root)
         binding.toolbar.setNavigationOnClickListener { finish() }
+        ConnectionBadge.bind(binding.connectionChip, this, this)
 
         bleAdapter = BleDeviceAdapter { device -> connectBle(device) }
         binding.bleList.layoutManager = LinearLayoutManager(this)
@@ -48,7 +51,7 @@ class ConnectionActivity : AppCompatActivity() {
         binding.enetButton.setOnClickListener {
             val ip = binding.ipInput.text.toString().trim()
             val port = binding.portInput.text.toString().trim().toIntOrNull() ?: 13400
-            if (ip.isEmpty()) { snack("Enter the car/gateway IP address."); return@setOnClickListener }
+            if (ip.isEmpty()) { snack(getString(R.string.enter_ip)); return@setOnClickListener }
             viewModel.connectEnet(ip, port)
         }
         binding.scanButton.setOnClickListener { ensurePermissionsThenScan() }
@@ -56,20 +59,28 @@ class ConnectionActivity : AppCompatActivity() {
 
         viewModel.state.observe(this) { s ->
             binding.statusText.text = when (s.status) {
-                ConnectionStatus.CONNECTED -> "Connected — ${s.label}"
-                ConnectionStatus.CONNECTING -> "Connecting to ${s.label}…"
-                ConnectionStatus.ERROR -> "Error: ${s.message}"
-                ConnectionStatus.DISCONNECTED -> "Not connected"
+                ConnectionStatus.CONNECTED -> getString(R.string.connected_as, s.label)
+                ConnectionStatus.CONNECTING -> getString(R.string.connecting_to, s.label)
+                ConnectionStatus.ERROR -> getString(R.string.connection_error, s.message)
+                ConnectionStatus.DISCONNECTED -> getString(R.string.not_connected)
             }
             binding.progress.visibility =
                 if (s.status == ConnectionStatus.CONNECTING) View.VISIBLE else View.GONE
             binding.disconnectButton.visibility =
                 if (s.isConnected) View.VISIBLE else View.GONE
+            val identity = s.identity
+            if (identity?.vin != null) {
+                binding.identityText.visibility = View.VISIBLE
+                binding.identityText.text = if (identity.iLevel != null)
+                    getString(R.string.vehicle_identity, identity.vin, identity.iLevel)
+                else
+                    getString(R.string.vehicle_identity_vin, identity.vin)
+            } else {
+                binding.identityText.visibility = View.GONE
+            }
             if (s.status == ConnectionStatus.ERROR && s.message != null) snack(s.message)
         }
     }
-
-    // --- BLE ---
 
     private fun requiredBlePermissions(): Array<String> =
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S)
@@ -85,9 +96,9 @@ class ConnectionActivity : AppCompatActivity() {
     }
 
     private fun startScan() {
-        if (!scanner.isAvailable) { snack("Enable Bluetooth to scan for adapters."); return }
+        if (!scanner.isAvailable) { snack(getString(R.string.enable_bluetooth)); return }
         found.clear(); bleAdapter.submitList(emptyList())
-        binding.scanButton.text = "Scanning…"
+        binding.scanButton.text = getString(R.string.scanning)
         scanner.start { device ->
             runOnUiThread {
                 if (found.none { it.address == device.address }) {
@@ -96,19 +107,19 @@ class ConnectionActivity : AppCompatActivity() {
                 }
             }
         }
-        // Auto-stop after a reasonable scan window.
-        binding.bleList.postDelayed({ stopScan() }, 8000)
+        binding.bleList.postDelayed({ stopScan(announce = true) }, 8000)
     }
 
-    private fun stopScan() {
+    private fun stopScan(announce: Boolean = false) {
         runCatching { scanner.stop() }
-        binding.scanButton.text = "Scan for BLE adapters"
+        binding.scanButton.text = getString(R.string.scan_ble)
+        if (announce) snack(getString(R.string.scan_finished, found.size))
     }
 
     private fun connectBle(device: BleDevice) {
         stopScan()
         val remote = scanner.deviceFor(device.address)
-        if (remote == null) { snack("Device no longer available."); return }
+        if (remote == null) { snack(getString(R.string.device_gone)); return }
         viewModel.connectBle(device.name, BleObdTransport(this, remote))
     }
 

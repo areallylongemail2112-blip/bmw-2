@@ -10,9 +10,12 @@ import com.bmw.assistant.data.db.ModuleEntity
 import com.bmw.assistant.data.model.BackupSource
 import com.bmw.assistant.data.model.CodingBackup
 import com.bmw.assistant.data.model.CodingItem
+import com.bmw.assistant.data.model.CodingsData
 import com.bmw.assistant.data.model.EcuMap
 import com.bmw.assistant.data.model.EnumOption
 import com.bmw.assistant.data.model.Module
+import com.bmw.assistant.data.model.StoredValue
+import com.bmw.assistant.data.model.ValueSource
 import com.bmw.assistant.data.model.ValueType
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
@@ -22,34 +25,55 @@ import kotlinx.coroutines.withContext
 /**
  * Single source of truth for module/coding definitions and their current values.
  *
- * Definitions live in Room (seeded once from the bundled JSON asset). Current values also
- * live in Room, so the app is fully offline and testable with no hardware.
+ * Definitions live in Room (seeded from the bundled JSON asset, and re-seeded when
+ * the asset version bumps). Current values also live in Room, tagged with a
+ * [ValueSource] so the UI can tell a live ECU read from a cached default.
  */
 class CodingRepository private constructor(
     private val dao: CodingDao,
     private val context: Context
 ) {
     private val gson = Gson()
+    private val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
 
-    /** Seed the database from the JSON asset the first time the app runs. */
+    /** Seed or refresh definitions when the bundled asset version is newer. */
     suspend fun ensureSeeded() = withContext(Dispatchers.IO) {
-        if (dao.moduleCount() > 0) return@withContext
         val data = CodingAssetLoader.load(context)
+        val last = prefs.getInt(KEY_ASSET_VERSION, 0)
+        if (dao.moduleCount() > 0 && last >= data.assetVersion) return@withContext
         dao.insertModules(data.modules.map { it.toEntity() })
         dao.insertCodings(data.codings.map { it.toEntity() })
+        prefs.edit().putInt(KEY_ASSET_VERSION, data.assetVersion).apply()
+    }
+
+    /**
+     * Merge an imported [CodingsData] into Room. Codings with the same id replace
+     * the stored definition (so a verified map can unlock a bundled illustrative one).
+     * New modules are inserted. Existing values and backups are left alone.
+     * @return number of coding rows written.
+     */
+    suspend fun importMaps(data: CodingsData): Int = withContext(Dispatchers.IO) {
+        if (data.modules.isNotEmpty()) {
+            dao.insertModules(data.modules.map { it.toEntity() })
+        }
+        if (data.codings.isNotEmpty()) {
+            dao.insertCodings(data.codings.map { it.toEntity() })
+        }
+        data.codings.size
     }
 
     /**
      * Populate the local value store with each coding's `demoValue` (falling back to its
      * default). Called when entering demo mode so cards show realistic "current values"
-     * with no car attached.
+     * with no car attached. Tagged [ValueSource.FROM_CAR] because the demo transport
+     * *is* the car for this session.
      */
     suspend fun seedDemoValues() = withContext(Dispatchers.IO) {
         val codings = dao.getModules().flatMap { dao.getCodingsForModule(it.id) }
         val now = System.currentTimeMillis()
         codings.forEach { c ->
             val v = c.demoValue ?: c.defaultValue
-            dao.upsertValue(CodingValueEntity(c.id, v, now))
+            dao.upsertValue(CodingValueEntity(c.id, v, now, ValueSource.FROM_CAR.name))
         }
     }
 
@@ -74,13 +98,24 @@ class CodingRepository private constructor(
         withContext(Dispatchers.IO) { dao.codingCountForModule(moduleId) }
 
     /** Current value for a coding, falling back to its factory default. */
-    suspend fun getValue(coding: CodingItem): String = withContext(Dispatchers.IO) {
-        dao.getValue(coding.id) ?: coding.defaultValue
+    suspend fun getValue(coding: CodingItem): String = getStoredValue(coding).value
+
+    suspend fun getStoredValue(coding: CodingItem): StoredValue = withContext(Dispatchers.IO) {
+        val row = dao.getValueRow(coding.id)
+        if (row == null) StoredValue(coding.defaultValue, ValueSource.DEFAULT)
+        else StoredValue(
+            row.value,
+            runCatching { ValueSource.valueOf(row.source) }.getOrDefault(ValueSource.LOCAL_CACHE)
+        )
     }
 
     /** Persist the value locally after a successful write (or in demo mode). */
-    suspend fun setValue(codingId: String, value: String) = withContext(Dispatchers.IO) {
-        dao.upsertValue(CodingValueEntity(codingId, value, System.currentTimeMillis()))
+    suspend fun setValue(
+        codingId: String,
+        value: String,
+        source: ValueSource = ValueSource.LOCAL_CACHE
+    ) = withContext(Dispatchers.IO) {
+        dao.upsertValue(CodingValueEntity(codingId, value, System.currentTimeMillis(), source.name))
     }
 
     // --- backups ---
@@ -96,7 +131,9 @@ class CodingRepository private constructor(
         blockHex: String,
         label: String,
         source: BackupSource,
-        connectionLabel: String?
+        connectionLabel: String?,
+        vin: String? = null,
+        iLevel: String? = null
     ): Boolean = withContext(Dispatchers.IO) {
         val latest = dao.latestBackupForBlock(module.id, dataIdentifier, source.name)
         if (latest?.blockHex == blockHex) return@withContext false
@@ -110,6 +147,8 @@ class CodingRepository private constructor(
                 label = label,
                 source = source.name,
                 connectionLabel = connectionLabel,
+                vin = vin,
+                iLevel = iLevel,
                 createdAt = System.currentTimeMillis()
             )
         )
@@ -134,6 +173,8 @@ class CodingRepository private constructor(
         label = label,
         source = runCatching { BackupSource.valueOf(source) }.getOrDefault(BackupSource.DEMO),
         connectionLabel = connectionLabel,
+        vin = vin,
+        iLevel = iLevel,
         createdAt = createdAt
     )
 
@@ -192,6 +233,9 @@ class CodingRepository private constructor(
     }
 
     companion object {
+        private const val PREFS = "bmw_assistant_meta"
+        private const val KEY_ASSET_VERSION = "coding_asset_version"
+
         @Volatile private var instance: CodingRepository? = null
 
         fun get(context: Context): CodingRepository =

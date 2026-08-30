@@ -37,6 +37,9 @@ interface CodingDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsertValue(value: CodingValueEntity)
 
+    @Query("SELECT * FROM coding_values WHERE codingId = :codingId")
+    suspend fun getValueRow(codingId: String): CodingValueEntity?
+
     @Query("SELECT value FROM coding_values WHERE codingId = :codingId")
     suspend fun getValue(codingId: String): String?
 

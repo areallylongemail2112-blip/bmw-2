@@ -35,8 +35,11 @@ data class CodingItem(
     }
 }
 
-/** Root shape of the bundled `codings_f10.json` asset. */
+/** Root shape of the bundled `codings_f10.json` asset (and of imported map files). */
 data class CodingsData(
-    val modules: List<Module>,
-    val codings: List<CodingItem>
+    val assetVersion: Int = 1,
+    val vin: String? = null,
+    val iLevel: String? = null,
+    val modules: List<Module> = emptyList(),
+    val codings: List<CodingItem> = emptyList()
 )

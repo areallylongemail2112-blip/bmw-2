@@ -4,15 +4,16 @@ import android.content.Intent
 import android.os.Bundle
 import androidx.appcompat.app.AppCompatActivity
 import com.bmw.assistant.databinding.ActivityHomeBinding
+import com.bmw.assistant.feature.backups.BackupsActivity
 import com.bmw.assistant.feature.coding.CodingModulesActivity
 import com.bmw.assistant.feature.connection.ConnectionActivity
 import com.bmw.assistant.feature.diagnostics.DiagnosticsModulesActivity
+import com.bmw.assistant.feature.service.ServicesActivity
 import com.bmw.assistant.ui.common.ConnectionBadge
 
 /**
- * The launcher screen and hub. Two paths: **Coding** (change what the car does, BimmerCode-
- * style) and **Diagnostics** (see what the car is doing, BimmerLink-style). The toolbar
- * connection chip is live on every screen.
+ * The launcher screen and hub. Paths: Coding, Diagnostics, Service functions,
+ * Backups, and Connection. The toolbar connection chip is live on every screen.
  */
 class HomeActivity : AppCompatActivity() {
 
@@ -30,6 +31,12 @@ class HomeActivity : AppCompatActivity() {
         }
         binding.diagnosticsCard.setOnClickListener {
             startActivity(Intent(this, DiagnosticsModulesActivity::class.java))
+        }
+        binding.servicesCard.setOnClickListener {
+            startActivity(Intent(this, ServicesActivity::class.java))
+        }
+        binding.backupsCard.setOnClickListener {
+            startActivity(Intent(this, BackupsActivity::class.java))
         }
         binding.connectCard.setOnClickListener {
             startActivity(Intent(this, ConnectionActivity::class.java))

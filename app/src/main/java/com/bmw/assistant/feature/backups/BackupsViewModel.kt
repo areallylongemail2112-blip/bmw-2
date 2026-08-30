@@ -7,6 +7,7 @@ import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.viewModelScope
 import com.bmw.assistant.BmwAssistantApp
 import com.bmw.assistant.data.model.CodingBackup
+import com.bmw.assistant.data.model.ValueSource
 import com.bmw.assistant.core.ecu.ConnectionManager
 import com.bmw.assistant.core.ecu.Hex
 import com.bmw.assistant.ui.common.Event
@@ -18,6 +19,7 @@ sealed class BackupAction {
     data class Restored(val label: String) : BackupAction()
     data class Created(val count: Int) : BackupAction()
     data class Failed(val message: String) : BackupAction()
+    data class Exported(val json: String) : BackupAction()
     object NeedsConnection : BackupAction()
 }
 
@@ -36,6 +38,37 @@ class BackupsViewModel(app: Application) : AndroidViewModel(app) {
 
     fun load() {
         viewModelScope.launch { _backups.value = repo.getBackups() }
+    }
+
+    fun exportJson() {
+        viewModelScope.launch {
+            val list = repo.getBackups()
+            if (list.isEmpty()) {
+                _event.value = Event(BackupAction.Failed("Nothing to export."))
+                return@launch
+            }
+            val payload = org.json.JSONObject().apply {
+                put("exportedAt", System.currentTimeMillis())
+                put("backups", org.json.JSONArray().apply {
+                    list.forEach { b ->
+                        put(org.json.JSONObject().apply {
+                            put("moduleId", b.moduleId)
+                            put("moduleName", b.moduleName)
+                            put("diagAddress", b.diagAddress)
+                            put("dataIdentifier", b.dataIdentifier)
+                            put("blockHex", b.blockHex)
+                            put("label", b.label)
+                            put("source", b.source.name)
+                            put("connectionLabel", b.connectionLabel)
+                            put("vin", b.vin)
+                            put("iLevel", b.iLevel)
+                            put("createdAt", b.createdAt)
+                        })
+                    }
+                })
+            }.toString(2)
+            _event.value = Event(BackupAction.Exported(payload))
+        }
     }
 
     fun delete(backup: CodingBackup) {
@@ -61,7 +94,7 @@ class BackupsViewModel(app: Application) : AndroidViewModel(app) {
                     // Re-read the module's codings so the list reflects the restored bytes.
                     repo.getCodingsForModule(module.id).forEach { coding ->
                         ConnectionManager.readValue(module, coding)?.let { v ->
-                            repo.setValue(coding.id, v)
+                            repo.setValue(coding.id, v, ValueSource.FROM_CAR)
                         }
                     }
                     BackupAction.Restored(backup.label)
@@ -86,6 +119,7 @@ class BackupsViewModel(app: Application) : AndroidViewModel(app) {
                 try {
                     val source = ConnectionManager.backupSource()
                     val label = ConnectionManager.current.label
+                    val identity = ConnectionManager.current.identity
                     var count = 0
                     val seen = HashSet<Pair<String, Int>>()
                     for (module in repo.getModules()) {
@@ -100,7 +134,9 @@ class BackupsViewModel(app: Application) : AndroidViewModel(app) {
                                 blockHex = Hex.encodeCompact(block),
                                 label = "Manual backup",
                                 source = source,
-                                connectionLabel = label
+                                connectionLabel = label,
+                                vin = identity?.vin,
+                                iLevel = identity?.iLevel
                             )
                             if (added) count++
                         }

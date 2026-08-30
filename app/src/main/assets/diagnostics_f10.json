@@ -1,5 +1,6 @@
 {
   "_comment": "BMW F10 diagnostics definitions. liveData maps a UDS DID to a physical value (raw*scale+offset over byteLength bytes, big-endian). dtcCatalog gives plain-English text for a fault's high-16-bit code. demoFaults are the codes the offline demo transport pretends each module has stored. As with the coding maps, the DIDs/scales are ILLUSTRATIVE and drive demo mode; real DIDs vary by ECU and I-level. dataIdentifier is decimal (JSON has no hex): 17920 = 0x4600.",
+  "assetVersion": 2,
   "liveData": [
     {
       "id": "dme_coolant_temp",
@@ -123,6 +124,33 @@
       "min": 0.0,
       "max": 100.0,
       "demoRaw": "A3"
+    },
+    {
+      "id": "kombi_coolant",
+      "moduleId": "kombi",
+      "name": "Coolant (cluster)",
+      "description": "Coolant temperature as shown on the instrument cluster.",
+      "dataIdentifier": 17969,
+      "byteLength": 1,
+      "scale": 1.0,
+      "offset": -48.0,
+      "unit": "°C",
+      "demoRaw": "8C"
+    },
+    {
+      "id": "frm_terminal_voltage",
+      "moduleId": "frm",
+      "name": "Supply voltage",
+      "description": "FRM terminal 30 voltage.",
+      "dataIdentifier": 17984,
+      "byteLength": 2,
+      "scale": 0.001,
+      "offset": 0.0,
+      "unit": "V",
+      "decimals": 1,
+      "min": 9.0,
+      "max": 16.0,
+      "demoRaw": "32C8"
     }
   ],
   "dtcCatalog": [
@@ -130,7 +158,22 @@
     { "code": "29E3", "description": "Oxygen sensor, bank 1 before catalyst: signal implausible." },
     { "code": "A0B4", "description": "Front cornering light: open circuit or short to ground." },
     { "code": "4B15", "description": "Supply voltage: too low during operation." },
-    { "code": "D35A", "description": "Instrument cluster: communication timeout with a bus node." }
+    { "code": "D35A", "description": "Instrument cluster: communication timeout with a bus node." },
+    { "code": "0300", "description": "Random/multiple cylinder misfire detected." },
+    { "code": "0301", "description": "Cylinder 1 misfire detected." },
+    { "code": "0171", "description": "System too lean (bank 1)." },
+    { "code": "0172", "description": "System too rich (bank 1)." },
+    { "code": "0420", "description": "Catalyst system efficiency below threshold (bank 1)." },
+    { "code": "0442", "description": "Evaporative emission system leak detected (small leak)." },
+    { "code": "0500", "description": "Vehicle speed sensor malfunction." },
+    { "code": "0562", "description": "System voltage too low." },
+    { "code": "0563", "description": "System voltage too high." },
+    { "code": "0700", "description": "Transmission control system malfunction (request MIL)." },
+    { "code": "2135", "description": "Throttle/pedal position sensor correlation." },
+    { "code": "2A01", "description": "Mixture control: adaptation limit reached." },
+    { "code": "5F01", "description": "KOMBI: display data invalid or missing." },
+    { "code": "E100", "description": "Gateway: no communication with a bus module." },
+    { "code": "A111", "description": "CAS: key identification failed or not present." }
   ],
   "demoFaults": [
     { "moduleId": "dme", "dtc": "2C6A08", "status": 9 },

@@ -12,29 +12,77 @@ class FakeTransport(
     private val liveBlocks: MutableMap<Pair<Int, Int>, ByteArray> = mutableMapOf(),
     private val faults: MutableMap<Int, MutableList<ByteArray>> = mutableMapOf(),
     override val supportsCoding: Boolean = true,
-    override val supportsDiagnostics: Boolean = true
+    override val supportsDiagnostics: Boolean = true,
+    var requireSecurity: Boolean = false,
+    var vin: String? = null,
+    var iLevel: String? = null,
+    val unreachableAddresses: MutableSet<Int> = mutableSetOf()
 ) : EcuTransport {
 
     override var isConnected: Boolean = true
+    private val unlocked = HashSet<Int>()
+    val testerPresentCount = java.util.concurrent.atomic.AtomicInteger(0)
+    val lastRoutines = mutableListOf<Pair<Int, Int>>()
+    var seed: ByteArray = byteArrayOf(0x11, 0x22, 0x33, 0x44)
 
     override fun connect() { isConnected = true }
     override fun disconnect() { isConnected = false }
 
     override fun transceive(diagAddress: Int, request: ByteArray): ByteArray {
+        if (diagAddress in unreachableAddresses) {
+            return byteArrayOf(Uds.NEGATIVE_RESPONSE.toByte(), request[0], 0x11)
+        }
         val sid = request[0].toInt() and 0xFF
         return when (sid) {
             Uds.SID_DIAGNOSTIC_SESSION_CONTROL ->
                 byteArrayOf((sid + 0x40).toByte(), request.getOrElse(1) { 0x03 })
+            Uds.SID_TESTER_PRESENT -> {
+                testerPresentCount.incrementAndGet()
+                byteArrayOf((sid + 0x40).toByte(), 0x00)
+            }
             Uds.SID_READ_DATA_BY_IDENTIFIER -> {
                 val did = ((request[1].toInt() and 0xFF) shl 8) or (request[2].toInt() and 0xFF)
-                val data = liveBlocks[diagAddress to did]
+                val identity = when (did) {
+                    Uds.DID_VIN -> vin?.toByteArray(Charsets.US_ASCII)
+                    Uds.DID_I_LEVEL -> iLevel?.toByteArray(Charsets.US_ASCII)
+                    else -> null
+                }
+                val data = identity
+                    ?: liveBlocks[diagAddress to did]
                     ?: codingBlocks.getOrPut(diagAddress to did) { ByteArray(8) }
                 byteArrayOf((sid + 0x40).toByte(), (did shr 8).toByte(), did.toByte()) + data
             }
             Uds.SID_WRITE_DATA_BY_IDENTIFIER -> {
+                if (requireSecurity && diagAddress !in unlocked) {
+                    return byteArrayOf(Uds.NEGATIVE_RESPONSE.toByte(), sid.toByte(), 0x33)
+                }
                 val did = ((request[1].toInt() and 0xFF) shl 8) or (request[2].toInt() and 0xFF)
                 codingBlocks[diagAddress to did] = request.copyOfRange(3, request.size)
                 byteArrayOf((sid + 0x40).toByte(), (did shr 8).toByte(), did.toByte())
+            }
+            Uds.SID_SECURITY_ACCESS -> {
+                val level = request.getOrElse(1) { 0 }.toInt() and 0xFF
+                when (level) {
+                    Uds.SECURITY_REQUEST_SEED ->
+                        byteArrayOf((sid + 0x40).toByte(), level.toByte()) + seed
+                    Uds.SECURITY_SEND_KEY -> {
+                        val key = if (request.size > 2) request.copyOfRange(2, request.size) else ByteArray(0)
+                        val expected = XorSecurityKeyProvider.keyFor(
+                            diagAddress, Uds.SECURITY_REQUEST_SEED, seed
+                        )
+                        if (!key.contentEquals(expected)) {
+                            return byteArrayOf(Uds.NEGATIVE_RESPONSE.toByte(), sid.toByte(), 0x35)
+                        }
+                        unlocked.add(diagAddress)
+                        byteArrayOf((sid + 0x40).toByte(), level.toByte())
+                    }
+                    else -> byteArrayOf(Uds.NEGATIVE_RESPONSE.toByte(), sid.toByte(), 0x12)
+                }
+            }
+            Uds.SID_ROUTINE_CONTROL -> {
+                val routineId = ((request[2].toInt() and 0xFF) shl 8) or (request[3].toInt() and 0xFF)
+                lastRoutines.add(diagAddress to routineId)
+                byteArrayOf((sid + 0x40).toByte(), request[1], request[2], request[3])
             }
             Uds.SID_READ_DTC_INFORMATION -> {
                 val header = byteArrayOf(

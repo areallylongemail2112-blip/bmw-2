@@ -49,6 +49,23 @@
             android:textAppearance="@style/CardBody"
             tools:text="Footwell Module" />
 
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/readFromCarButton"
+            style="@style/Widget.Material3.Button.TonalButton"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginHorizontal="16dp"
+            android:layout_marginTop="8dp"
+            android:text="@string/read_from_car" />
+
+        <ProgressBar
+            android:id="@+id/progress"
+            android:layout_width="26dp"
+            android:layout_height="26dp"
+            android:layout_gravity="center_horizontal"
+            android:layout_marginTop="4dp"
+            android:visibility="gone" />
+
         <androidx.recyclerview.widget.RecyclerView
             android:id="@+id/codingList"
             android:layout_width="match_parent"

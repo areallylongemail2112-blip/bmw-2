@@ -52,7 +52,8 @@ data class CodingEntity(
 data class CodingValueEntity(
     @PrimaryKey val codingId: String,
     val value: String,
-    val updatedAt: Long
+    val updatedAt: Long,
+    val source: String = "DEFAULT"
 )
 
 /**
@@ -71,5 +72,7 @@ data class CodingBackupEntity(
     val label: String,
     val source: String,
     val connectionLabel: String?,
+    val vin: String? = null,
+    val iLevel: String? = null,
     val createdAt: Long
 )

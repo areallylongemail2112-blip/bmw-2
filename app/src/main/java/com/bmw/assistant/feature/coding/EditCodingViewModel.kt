@@ -10,6 +10,7 @@ import com.bmw.assistant.core.ecu.ConnectionManager
 import com.bmw.assistant.core.ecu.Hex
 import com.bmw.assistant.data.model.CodingItem
 import com.bmw.assistant.data.model.Module
+import com.bmw.assistant.data.model.ValueSource
 import com.bmw.assistant.data.model.ValueType
 import com.bmw.assistant.ui.common.Event
 import kotlinx.coroutines.Dispatchers
@@ -26,7 +27,10 @@ sealed class ApplyResult {
 data class EditUiModel(
     val coding: CodingItem,
     val module: Module?,
-    val currentValue: String
+    val currentValue: String,
+    val source: ValueSource,
+    val canApply: Boolean,
+    val applyBlockedReason: String?
 )
 
 class EditCodingViewModel(app: Application) : AndroidViewModel(app) {
@@ -55,13 +59,48 @@ class EditCodingViewModel(app: Application) : AndroidViewModel(app) {
         viewModelScope.launch {
             val c = repo.getCoding(codingId) ?: return@launch
             val m = repo.getModule(c.moduleId)
-            val value = repo.getValue(c)
+            val stored = repo.getStoredValue(c)
             _coding.value = c
             _module.value = m
-            _currentValue.value = value
-            // Publish atomically so the Activity can bind controls with the right value.
-            _ui.value = EditUiModel(c, m, value)
+            _currentValue.value = stored.value
+            publishUi(c, m, stored.value, stored.source)
+
+            if (m != null && ConnectionManager.current.supportsCoding && ConnectionManager.isLive) {
+                syncOne(c, m)
+            }
         }
+    }
+
+    fun readFromCar() {
+        val c = _coding.value ?: return
+        val m = _module.value ?: return
+        viewModelScope.launch { syncOne(c, m) }
+    }
+
+    private suspend fun syncOne(c: CodingItem, m: Module) {
+        _busy.value = true
+        val outcome = withContext(Dispatchers.IO) {
+            try {
+                val live = ConnectionManager.readValue(m, c)
+                if (live != null) {
+                    repo.setValue(c.id, live, ValueSource.FROM_CAR)
+                    live to null
+                } else {
+                    null to "Could not decode this coding from the module."
+                }
+            } catch (e: Exception) {
+                null to (e.message ?: "Read from car failed")
+            }
+        }
+        val live = outcome.first
+        if (live != null) {
+            _currentValue.value = live
+            publishUi(c, m, live, ValueSource.FROM_CAR)
+        } else {
+            val stored = repo.getStoredValue(c)
+            publishUi(c, m, stored.value, stored.source, outcome.second)
+        }
+        _busy.value = false
     }
 
     /**
@@ -99,10 +138,15 @@ class EditCodingViewModel(app: Application) : AndroidViewModel(app) {
     fun apply(newValue: String) {
         val c = _coding.value ?: return
         val m = _module.value ?: return
+        val model = _ui.value
 
         val conn = ConnectionManager.current
         if (!conn.isConnected) {
             _result.value = Event(ApplyResult.NeedsConnection)
+            return
+        }
+        if (model?.canApply == false) {
+            _result.value = Event(ApplyResult.Error(model.applyBlockedReason ?: "Read from the car first."))
             return
         }
         validate(newValue)?.let {
@@ -116,23 +160,24 @@ class EditCodingViewModel(app: Application) : AndroidViewModel(app) {
                 try {
                     val engine = ConnectionManager.codingEngine()
                         ?: return@withContext ApplyResult.NeedsConnection
-                    // Snapshot the block before modifying it so the exact original bytes can
-                    // be restored from the Backups screen. A failed snapshot aborts the write.
                     c.ecuMap?.let { map ->
                         val before = engine.readBlock(m, map.dataIdentifier)
                         if (before.isNotEmpty()) {
+                            val identity = ConnectionManager.current.identity
                             repo.addBackupIfChanged(
                                 module = m,
                                 dataIdentifier = map.dataIdentifier,
                                 blockHex = Hex.encodeCompact(before),
                                 label = "Before editing “${c.name}”",
                                 source = ConnectionManager.backupSource(),
-                                connectionLabel = ConnectionManager.current.label
+                                connectionLabel = ConnectionManager.current.label,
+                                vin = identity?.vin,
+                                iLevel = identity?.iLevel
                             )
                         }
                     }
                     val rawByte = engine.applyCoding(m, c, newValue)
-                    repo.setValue(c.id, newValue)
+                    repo.setValue(c.id, newValue, ValueSource.FROM_CAR)
                     ApplyResult.Success(
                         c.displayValue(newValue),
                         "0x%02X".format(rawByte.toInt() and 0xFF)
@@ -143,10 +188,28 @@ class EditCodingViewModel(app: Application) : AndroidViewModel(app) {
             }
             if (outcome is ApplyResult.Success) {
                 _currentValue.value = newValue
-                _ui.value = EditUiModel(c, m, newValue)
+                publishUi(c, m, newValue, ValueSource.FROM_CAR)
             }
             _busy.value = false
             _result.value = Event(outcome)
         }
+    }
+
+    private fun publishUi(
+        c: CodingItem,
+        m: Module?,
+        value: String,
+        source: ValueSource,
+        readError: String? = null
+    ) {
+        val conn = ConnectionManager.current
+        val (canApply, reason) = when {
+            !conn.isConnected -> false to "Not connected. Open the Connection screen first."
+            !conn.supportsCoding -> false to "This connection cannot write coding. Use ENET or demo mode."
+            source != ValueSource.FROM_CAR ->
+                false to (readError ?: "Read this value from the car before applying a change.")
+            else -> true to null
+        }
+        _ui.value = EditUiModel(c, m, value, source, canApply, reason)
     }
 }

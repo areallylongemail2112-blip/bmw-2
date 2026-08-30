@@ -18,7 +18,18 @@
             android:background="@color/primary"
             app:navigationIcon="@drawable/ic_arrow_back"
             app:title="@string/connection_title"
-            app:titleTextColor="@color/on_primary" />
+            app:titleTextColor="@color/on_primary">
+
+            <com.google.android.material.chip.Chip
+                android:id="@+id/connectionChip"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="end|center_vertical"
+                android:text="@string/not_connected"
+                android:textColor="@color/on_primary"
+                app:chipMinHeight="30dp"
+                app:chipBackgroundColor="@color/status_disconnected" />
+        </com.google.android.material.appbar.MaterialToolbar>
     </com.google.android.material.appbar.AppBarLayout>
 
     <androidx.core.widget.NestedScrollView
@@ -60,39 +71,47 @@
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
                         android:layout_weight="1"
-                        android:text="Not connected"
+                        android:text="@string/not_connected"
                         android:textColor="@color/on_primary"
                         android:textStyle="bold" />
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
 
+            <TextView
+                android:id="@+id/identityText"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:textAppearance="@style/CardBody"
+                android:visibility="gone" />
+
             <!-- Demo mode -->
             <TextView style="@style/CardTitle" android:layout_width="wrap_content"
                 android:layout_height="wrap_content" android:layout_marginTop="20dp"
-                android:text="Demo mode" />
+                android:text="@string/demo_mode_title" />
             <TextView style="@style/CardBody" android:layout_width="match_parent"
                 android:layout_height="wrap_content" android:layout_marginTop="2dp"
-                android:text="Try the whole app with no hardware. Coding, fault codes, and live data are all simulated against a fake car with realistic values." />
+                android:text="@string/demo_mode_body" />
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/demoButton"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="8dp"
-                android:text="Start demo mode" />
+                android:text="@string/start_demo_mode" />
 
             <!-- ENET / WiFi -->
             <TextView style="@style/CardTitle" android:layout_width="wrap_content"
                 android:layout_height="wrap_content" android:layout_marginTop="24dp"
-                android:text="ENET / WiFi (coding + diagnostics)" />
+                android:text="@string/enet_title" />
             <TextView style="@style/CardBody" android:layout_width="match_parent"
                 android:layout_height="wrap_content" android:layout_marginTop="2dp"
-                android:text="Connect over an ENET cable or the gateway's WiFi and enter its IP address. This is the path that can write coding and read live UDS diagnostics on F-series modules (DoIP/UDS)." />
+                android:text="@string/enet_body" />
 
             <com.google.android.material.textfield.TextInputLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="8dp"
-                android:hint="Car / gateway IP">
+                android:hint="@string/hint_gateway_ip">
                 <com.google.android.material.textfield.TextInputEditText
                     android:id="@+id/ipInput"
                     android:layout_width="match_parent"
@@ -104,7 +123,7 @@
             <com.google.android.material.textfield.TextInputLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:hint="Port">
+                android:hint="@string/hint_port">
                 <com.google.android.material.textfield.TextInputEditText
                     android:id="@+id/portInput"
                     android:layout_width="match_parent"
@@ -117,15 +136,15 @@
                 android:id="@+id/enetButton"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="Connect over ENET" />
+                android:text="@string/connect_enet" />
 
             <!-- BLE -->
             <TextView style="@style/CardTitle" android:layout_width="wrap_content"
                 android:layout_height="wrap_content" android:layout_marginTop="24dp"
-                android:text="Bluetooth OBD adapter" />
+                android:text="@string/ble_title" />
             <TextView style="@style/CardBody" android:layout_width="match_parent"
                 android:layout_height="wrap_content" android:layout_marginTop="2dp"
-                android:text="Scan for a BLE OBD dongle. Note: consumer BLE adapters connect and handshake only — module-addressed coding and diagnostics go through ENET or demo mode." />
+                android:text="@string/ble_body" />
 
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/scanButton"

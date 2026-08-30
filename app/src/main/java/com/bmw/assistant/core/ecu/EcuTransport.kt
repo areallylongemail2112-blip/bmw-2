@@ -43,4 +43,8 @@ interface EcuTransport {
 }
 
 /** Raised for any ECU-level failure (negative response, timeout, link down). */
-class EcuException(message: String, cause: Throwable? = null) : Exception(message, cause)
+class EcuException(
+    message: String,
+    cause: Throwable? = null,
+    val nrc: Int? = null
+) : Exception(message, cause)

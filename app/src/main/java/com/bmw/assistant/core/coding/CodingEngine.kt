@@ -3,6 +3,7 @@ package com.bmw.assistant.core.coding
 import com.bmw.assistant.core.ecu.EcuException
 import com.bmw.assistant.core.ecu.EcuTransport
 import com.bmw.assistant.core.ecu.Hex
+import com.bmw.assistant.core.ecu.SecurityKeyProvider
 import com.bmw.assistant.core.ecu.UdsClient
 import com.bmw.assistant.data.model.CodingItem
 import com.bmw.assistant.data.model.EcuMap
@@ -23,7 +24,11 @@ import com.bmw.assistant.data.model.ValueType
  * for demo only; pushing an unverified byte offset to a real module can brick it. Demo mode
  * bypasses the gate because nothing physical is touched.
  */
-class CodingEngine(private val transport: EcuTransport, private val isDemo: Boolean) {
+class CodingEngine(
+    private val transport: EcuTransport,
+    private val isDemo: Boolean,
+    private val keyProvider: SecurityKeyProvider? = null
+) {
 
     private val uds = UdsClient(transport)
 
@@ -64,8 +69,25 @@ class CodingEngine(private val transport: EcuTransport, private val isDemo: Bool
         val merged = (existing and map.bitMask.inv()) or (rawValue and map.bitMask)
         working[map.byteOffset] = merged.toByte()
 
-        uds.writeDataByIdentifier(module.diagAddress, map.dataIdentifier, working)
+        writeBlock(module.diagAddress, map.dataIdentifier, working)
         return merged.toByte()
+    }
+
+    private fun writeBlock(diagAddress: Int, did: Int, data: ByteArray) {
+        try {
+            uds.writeDataByIdentifier(diagAddress, did, data)
+        } catch (e: EcuException) {
+            if (e.nrc != 0x33) throw e
+            val provider = keyProvider
+                ?: throw EcuException(
+                    "This module requires SecurityAccess (0x27) before a coding write. " +
+                        "Register a seed-to-key provider for your car, or use demo mode. " +
+                        "This app does not ship a BMW SecurityAccess algorithm.",
+                    nrc = 0x33
+                )
+            uds.unlockSecurity(diagAddress, provider)
+            uds.writeDataByIdentifier(diagAddress, did, data, openSession = false)
+        }
     }
 
     /**
@@ -92,7 +114,7 @@ class CodingEngine(private val transport: EcuTransport, private val isDemo: Bool
             throw EcuException("The active connection cannot write coding data. Use ENET or demo mode.")
         }
         if (block.isEmpty()) throw EcuException("Backup block is empty — nothing to restore.")
-        uds.writeDataByIdentifier(module.diagAddress, dataIdentifier, block)
+        writeBlock(module.diagAddress, dataIdentifier, block)
     }
 
     /** Reads the current byte for a coding and decodes it back to a friendly value. */
