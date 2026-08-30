@@ -32,6 +32,13 @@
             tools:text="Engine coolant temperature from the DME." />
     </LinearLayout>
 
+    <com.bmw.assistant.ui.common.SparklineView
+        android:id="@+id/sparkline"
+        android:layout_width="56dp"
+        android:layout_height="28dp"
+        android:layout_marginStart="8dp"
+        android:contentDescription="@string/live_data" />
+
     <TextView
         android:id="@+id/liveValue"
         android:layout_width="wrap_content"

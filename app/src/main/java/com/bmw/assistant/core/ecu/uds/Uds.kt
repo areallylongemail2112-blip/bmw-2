@@ -29,7 +29,26 @@ object Uds {
     const val SID_READ_DATA_BY_IDENTIFIER = 0x22
     const val SID_SECURITY_ACCESS = 0x27
     const val SID_WRITE_DATA_BY_IDENTIFIER = 0x2E
+    const val SID_ROUTINE_CONTROL = 0x31
     const val SID_TESTER_PRESENT = 0x3E
+
+    /** ISO 14229 VIN (ASCII, typically 17 characters). */
+    const val DID_VIN = 0xF190
+
+    /**
+     * Demo / optional I-level identification DID. Real F-series I-level lives in
+     * gateway/CAS identification data and varies by I-level; this constant is the
+     * address the demo transport answers and that hardware probes try first.
+     */
+    const val DID_I_LEVEL = 0xF1A5
+
+    /** SecurityAccess request-seed sub-function for programming/coding (odd). */
+    const val SECURITY_REQUEST_SEED = 0x01
+
+    /** SecurityAccess send-key sub-function matching [SECURITY_REQUEST_SEED]. */
+    const val SECURITY_SEND_KEY = 0x02
+
+    const val ROUTINE_START = 0x01
 
     // --- session types ---
     const val SESSION_DEFAULT = 0x01
@@ -51,8 +70,25 @@ object Uds {
     fun sessionControl(session: Int = SESSION_EXTENDED): ByteArray =
         byteArrayOf(SID_DIAGNOSTIC_SESSION_CONTROL.toByte(), session.toByte())
 
-    fun testerPresent(): ByteArray =
-        byteArrayOf(SID_TESTER_PRESENT.toByte(), 0x00)
+    fun testerPresent(suppressResponse: Boolean = false): ByteArray =
+        byteArrayOf(
+            SID_TESTER_PRESENT.toByte(),
+            (if (suppressResponse) 0x80 else 0x00).toByte()
+        )
+
+    fun securityAccessRequestSeed(level: Int = SECURITY_REQUEST_SEED): ByteArray =
+        byteArrayOf(SID_SECURITY_ACCESS.toByte(), level.toByte())
+
+    fun securityAccessSendKey(level: Int = SECURITY_SEND_KEY, key: ByteArray): ByteArray =
+        byteArrayOf(SID_SECURITY_ACCESS.toByte(), level.toByte()) + key
+
+    fun routineControl(subFunction: Int, routineId: Int, optionRecord: ByteArray = byteArrayOf()): ByteArray =
+        byteArrayOf(
+            SID_ROUTINE_CONTROL.toByte(),
+            subFunction.toByte(),
+            (routineId shr 8).toByte(),
+            routineId.toByte()
+        ) + optionRecord
 
     fun readDataByIdentifier(did: Int): ByteArray =
         byteArrayOf(SID_READ_DATA_BY_IDENTIFIER.toByte(), (did shr 8).toByte(), did.toByte())

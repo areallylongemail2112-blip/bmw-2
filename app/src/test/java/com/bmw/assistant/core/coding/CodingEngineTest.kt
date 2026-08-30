@@ -159,6 +159,52 @@ class CodingEngineTest {
     }
 
     @Test
+    fun securityAccessDenied_retriesAfterUnlock() {
+        val transport = FakeTransport(requireSecurity = true)
+        transport.putCoding(0x72, 0x3000, byteArrayOf(0x00, 0, 0, 0, 0, 0, 0, 0))
+        val engine = CodingEngine(
+            transport,
+            isDemo = true,
+            keyProvider = com.bmw.assistant.core.ecu.XorSecurityKeyProvider
+        )
+        val item = coding(
+            ValueType.BOOLEAN,
+            EcuMap(
+                dataIdentifier = 0x3000,
+                byteOffset = 0,
+                bitMask = 0x01,
+                encodedValues = mapOf("true" to "0x01", "false" to "0x00"),
+                verified = true
+            ),
+            defaultValue = "false"
+        )
+        engine.applyCoding(module, item, "true")
+        assertEquals(0x01, transport.getCoding(0x72, 0x3000)!![0].toInt() and 0xFF)
+    }
+
+    @Test
+    fun securityAccessDenied_withoutProvider_explains() {
+        val transport = FakeTransport(requireSecurity = true)
+        transport.putCoding(0x72, 0x3000, byteArrayOf(0x00, 0, 0, 0, 0, 0, 0, 0))
+        val engine = CodingEngine(transport, isDemo = false)
+        val item = coding(
+            ValueType.BOOLEAN,
+            EcuMap(
+                dataIdentifier = 0x3000,
+                byteOffset = 0,
+                bitMask = 0x01,
+                encodedValues = mapOf("true" to "0x01", "false" to "0x00"),
+                verified = true
+            ),
+            defaultValue = "false"
+        )
+        val ex = assertThrows(EcuException::class.java) {
+            engine.applyCoding(module, item, "true")
+        }
+        assertTrue(ex.message!!.contains("SecurityAccess"))
+    }
+
+    @Test
     fun multiByteHex_rejected() {
         val engine = CodingEngine(FakeTransport(), isDemo = true)
         val item = coding(

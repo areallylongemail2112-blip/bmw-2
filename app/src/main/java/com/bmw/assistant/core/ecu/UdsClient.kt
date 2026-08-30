@@ -19,7 +19,15 @@ class UdsClient(private val transport: EcuTransport) {
     fun openExtendedSession(diagAddress: Int) {
         val resp = transport.transceive(diagAddress, Uds.sessionControl(Uds.SESSION_EXTENDED))
         if (!Uds.isPositive(resp, Uds.SID_DIAGNOSTIC_SESSION_CONTROL)) {
-            throw EcuException("Could not open extended session: " + describe(resp))
+            throw fail("Could not open extended session", resp)
+        }
+    }
+
+    /** TesterPresent (0x3E) — keeps an extended session alive. */
+    fun testerPresent(diagAddress: Int) {
+        val resp = transport.transceive(diagAddress, Uds.testerPresent())
+        if (!Uds.isPositive(resp, Uds.SID_TESTER_PRESENT)) {
+            throw fail("TesterPresent failed", resp)
         }
     }
 
@@ -31,7 +39,7 @@ class UdsClient(private val transport: EcuTransport) {
         if (openSession) openExtendedSession(diagAddress)
         val resp = transport.transceive(diagAddress, Uds.readDataByIdentifier(did))
         if (!Uds.isPositive(resp, Uds.SID_READ_DATA_BY_IDENTIFIER)) {
-            throw EcuException("ReadDataByIdentifier(0x%04X) failed: ".format(did) + describe(resp))
+            throw fail("ReadDataByIdentifier(0x%04X) failed".format(did), resp)
         }
         return if (resp.size > 3) resp.copyOfRange(3, resp.size) else ByteArray(0)
     }
@@ -41,8 +49,57 @@ class UdsClient(private val transport: EcuTransport) {
         if (openSession) openExtendedSession(diagAddress)
         val resp = transport.transceive(diagAddress, Uds.writeDataByIdentifier(did, data))
         if (!Uds.isPositive(resp, Uds.SID_WRITE_DATA_BY_IDENTIFIER)) {
-            throw EcuException("WriteDataByIdentifier(0x%04X) failed: ".format(did) + describe(resp))
+            throw fail("WriteDataByIdentifier(0x%04X) failed".format(did), resp)
         }
+    }
+
+    /**
+     * SecurityAccess (0x27): request a seed at [seedLevel], derive a key via [provider],
+     * then send the key at [seedLevel] + 1. Returns the seed that was unlocked.
+     */
+    fun unlockSecurity(
+        diagAddress: Int,
+        provider: SecurityKeyProvider,
+        seedLevel: Int = Uds.SECURITY_REQUEST_SEED,
+        openSession: Boolean = true
+    ): ByteArray {
+        if (openSession) openExtendedSession(diagAddress)
+        val seedResp = transport.transceive(diagAddress, Uds.securityAccessRequestSeed(seedLevel))
+        if (!Uds.isPositive(seedResp, Uds.SID_SECURITY_ACCESS)) {
+            throw fail("SecurityAccess requestSeed failed", seedResp)
+        }
+        val seed = if (seedResp.size > 2) seedResp.copyOfRange(2, seedResp.size) else ByteArray(0)
+        if (seed.isEmpty()) throw EcuException("SecurityAccess returned an empty seed")
+        val key = provider.keyFor(diagAddress, seedLevel, seed)
+            ?: throw EcuException(
+                "No seed-to-key function is registered for this module. " +
+                    "This app does not ship a BMW SecurityAccess algorithm; " +
+                    "register a SecurityKeyProvider or stay in demo mode."
+            )
+        val keyLevel = seedLevel + 1
+        val keyResp = transport.transceive(diagAddress, Uds.securityAccessSendKey(keyLevel, key))
+        if (!Uds.isPositive(keyResp, Uds.SID_SECURITY_ACCESS)) {
+            throw fail("SecurityAccess sendKey failed", keyResp)
+        }
+        return seed
+    }
+
+    /** RoutineControl startRoutine (0x31 0x01). Returns the option-record payload after the header. */
+    fun startRoutine(
+        diagAddress: Int,
+        routineId: Int,
+        optionRecord: ByteArray = byteArrayOf(),
+        openSession: Boolean = true
+    ): ByteArray {
+        if (openSession) openExtendedSession(diagAddress)
+        val resp = transport.transceive(
+            diagAddress,
+            Uds.routineControl(Uds.ROUTINE_START, routineId, optionRecord)
+        )
+        if (!Uds.isPositive(resp, Uds.SID_ROUTINE_CONTROL)) {
+            throw fail("RoutineControl(0x%04X) failed".format(routineId), resp)
+        }
+        return if (resp.size > 4) resp.copyOfRange(4, resp.size) else ByteArray(0)
     }
 
     /** ReadDTCInformation by status mask (0x19 0x02): the module's stored fault codes. */
@@ -50,7 +107,7 @@ class UdsClient(private val transport: EcuTransport) {
         openExtendedSession(diagAddress)
         val resp = transport.transceive(diagAddress, Uds.readDtcByStatusMask(statusMask))
         if (!Uds.isPositive(resp, Uds.SID_READ_DTC_INFORMATION)) {
-            throw EcuException("ReadDTCInformation failed: " + describe(resp))
+            throw fail("ReadDTCInformation failed", resp)
         }
         return Dtc.parseByStatusMask(resp)
     }
@@ -60,11 +117,13 @@ class UdsClient(private val transport: EcuTransport) {
         openExtendedSession(diagAddress)
         val resp = transport.transceive(diagAddress, Uds.clearDiagnosticInformation(group))
         if (!Uds.isPositive(resp, Uds.SID_CLEAR_DIAGNOSTIC_INFORMATION)) {
-            throw EcuException("ClearDiagnosticInformation failed: " + describe(resp))
+            throw fail("ClearDiagnosticInformation failed", resp)
         }
     }
 
-    private fun describe(resp: ByteArray): String =
-        Uds.negativeResponseCode(resp)?.let { Uds.describeNrc(it) }
-            ?: ("unexpected response " + Hex.encode(resp))
+    private fun fail(prefix: String, resp: ByteArray): EcuException {
+        val nrc = Uds.negativeResponseCode(resp)
+        val detail = nrc?.let { Uds.describeNrc(it) } ?: ("unexpected response " + Hex.encode(resp))
+        return EcuException("$prefix: $detail", nrc = nrc)
+    }
 }

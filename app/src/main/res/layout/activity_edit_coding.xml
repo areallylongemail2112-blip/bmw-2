@@ -62,7 +62,7 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="What does this do?"
+                        android:text="@string/what_does_this_do"
                         android:textAppearance="@style/CardTitle" />
 
                     <TextView
@@ -108,7 +108,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="18dp"
-                android:text="Current value"
+                android:text="@string/current_value"
                 android:textSize="12sp"
                 android:textColor="@color/on_surface_muted" />
 
@@ -121,20 +121,36 @@
                 android:textStyle="bold"
                 tools:text="Off" />
 
+            <TextView
+                android:id="@+id/valueSource"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="2dp"
+                android:textColor="@color/on_surface_muted"
+                android:textSize="12sp"
+                tools:text="From car" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/readFromCarButton"
+                style="@style/Widget.Material3.Button.TextButton"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/read_from_car" />
+
             <!-- New value section -->
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="18dp"
                 android:layout_marginBottom="8dp"
-                android:text="New value"
+                android:text="@string/new_value"
                 android:textAppearance="@style/CardTitle" />
 
             <com.google.android.material.materialswitch.MaterialSwitch
                 android:id="@+id/booleanSwitch"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Enabled"
+                android:text="@string/enabled"
                 android:visibility="gone" />
 
             <Spinner

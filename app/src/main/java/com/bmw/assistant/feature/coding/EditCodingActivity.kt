@@ -30,9 +30,11 @@ class EditCodingActivity : AppCompatActivity() {
         ConnectionBadge.bind(binding.connectionChip, this, this)
         binding.toolbar.setNavigationOnClickListener { finish() }
 
+        binding.readFromCarButton.setOnClickListener { viewModel.readFromCar() }
         viewModel.ui.observe(this) { model -> if (model != null) bindCoding(model) }
         viewModel.busy.observe(this) { busy ->
-            binding.applyButton.isEnabled = !busy
+            binding.applyButton.isEnabled = !busy && (viewModel.ui.value?.canApply != false)
+            binding.readFromCarButton.isEnabled = !busy
             binding.progress.visibility = if (busy) View.VISIBLE else View.GONE
         }
         viewModel.result.observe(this) { ev ->
@@ -62,6 +64,13 @@ class EditCodingActivity : AppCompatActivity() {
         binding.longDescription.text = c.longDescription
         binding.safeInfo.text = buildSafeInfo(c)
         binding.currentValue.text = c.displayValue(model.currentValue)
+        binding.valueSource.text = when (model.source) {
+            com.bmw.assistant.data.model.ValueSource.FROM_CAR -> getString(com.bmw.assistant.R.string.source_from_car)
+            com.bmw.assistant.data.model.ValueSource.LOCAL_CACHE -> getString(com.bmw.assistant.R.string.source_local_cache)
+            com.bmw.assistant.data.model.ValueSource.DEFAULT -> getString(com.bmw.assistant.R.string.source_default)
+        }
+        binding.applyButton.isEnabled = model.canApply
+        binding.applyButton.alpha = if (model.canApply) 1f else 0.5f
 
         // Warning banner for irreversible / flagged codings.
         val warn = c.warning ?: if (c.irreversible)

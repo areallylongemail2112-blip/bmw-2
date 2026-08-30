@@ -6,6 +6,7 @@ import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.viewModelScope
 import com.bmw.assistant.BmwAssistantApp
+import com.bmw.assistant.core.ecu.ConnectionManager
 import com.bmw.assistant.data.model.Module
 import kotlinx.coroutines.launch
 
@@ -23,9 +24,10 @@ class DiagnosticsModulesViewModel(app: Application) : AndroidViewModel(app) {
         viewModelScope.launch {
             codingRepo.ensureSeeded()
             // Every module can report fault codes; some also expose live data.
-            _modules.value = codingRepo.getModules().map { m ->
-                DiagModuleUi(m, diagRepo.hasLiveData(m.id))
-            }
+            val identity = ConnectionManager.current.identity
+            _modules.value = codingRepo.getModules()
+                .filter { identity == null || identity.isModulePresent(it.id) }
+                .map { m -> DiagModuleUi(m, diagRepo.hasLiveData(m.id)) }
         }
     }
 }

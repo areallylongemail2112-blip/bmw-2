@@ -2,20 +2,34 @@ package com.bmw.assistant.feature.backups
 
 import android.os.Bundle
 import android.view.View
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
 import androidx.recyclerview.widget.LinearLayoutManager
+import com.bmw.assistant.R
 import com.bmw.assistant.data.model.CodingBackup
 import com.bmw.assistant.databinding.ActivityBackupsBinding
 import com.bmw.assistant.ui.common.ConnectionBadge
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.android.material.snackbar.Snackbar
+import java.nio.charset.StandardCharsets
 
 /** Restore-point manager: view coding-block snapshots and write them back to a module. */
 class BackupsActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityBackupsBinding
     private val viewModel: BackupsViewModel by viewModels()
+    private var pendingExport: String? = null
+
+    private val createDocument = registerForActivityResult(
+        ActivityResultContracts.CreateDocument("application/json")
+    ) { uri ->
+        val json = pendingExport ?: return@registerForActivityResult
+        pendingExport = null
+        if (uri == null) return@registerForActivityResult
+        contentResolver.openOutputStream(uri)?.use { it.write(json.toByteArray(StandardCharsets.UTF_8)) }
+        snack(getString(R.string.backups_exported))
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -24,6 +38,13 @@ class BackupsActivity : AppCompatActivity() {
 
         ConnectionBadge.bind(binding.connectionChip, this, this)
         binding.toolbar.setNavigationOnClickListener { finish() }
+        binding.toolbar.inflateMenu(R.menu.backups_menu)
+        binding.toolbar.setOnMenuItemClickListener { item ->
+            if (item.itemId == R.id.action_export) {
+                viewModel.exportJson()
+                true
+            } else false
+        }
 
         val adapter = BackupAdapter(
             onRestore = { confirmRestore(it) },
@@ -49,9 +70,11 @@ class BackupsActivity : AppCompatActivity() {
                     else "Saved ${a.count} backup${if (a.count == 1) "" else "s"}."
                 )
                 is BackupAction.Failed -> snack(a.message)
-                BackupAction.NeedsConnection -> snack(
-                    "Not connected. Open the connection screen (or use demo mode) first."
-                )
+                is BackupAction.Exported -> {
+                    pendingExport = a.json
+                    createDocument.launch("bmw-assistant-backups.json")
+                }
+                BackupAction.NeedsConnection -> snack(getString(R.string.error_not_connected))
                 null -> {}
             }
         }

@@ -20,6 +20,15 @@ class LiveDataAdapter : ListAdapter<LiveRowUi, LiveDataAdapter.VH>(DIFF) {
         with(holder.binding) {
             liveName.text = item.name
             liveValue.text = item.value
+            liveValue.setTextColor(
+                androidx.core.content.ContextCompat.getColor(
+                    root.context,
+                    if (item.isError) com.bmw.assistant.R.color.status_error
+                    else com.bmw.assistant.R.color.primary
+                )
+            )
+            sparkline.setSamples(item.history)
+            sparkline.visibility = if (item.history.size >= 2) View.VISIBLE else View.GONE
             if (item.description.isBlank()) {
                 liveDescription.visibility = View.GONE
             } else {

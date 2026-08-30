@@ -1,5 +1,6 @@
 {
   "_comment": "BMW F10 coding definitions. The ecuMap blocks describe HOW each value is encoded into a module coding byte (DID, byte offset, bit mask, value map). They are ILLUSTRATIVE and marked verified:false — the app writes them freely in demo mode but refuses to push an unverified map to real hardware. See README (How to add new coding entries) to supply verified maps.",
+  "assetVersion": 2,
   "modules": [
     {
       "id": "frm",

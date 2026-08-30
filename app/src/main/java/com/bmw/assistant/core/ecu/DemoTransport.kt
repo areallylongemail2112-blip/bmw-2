@@ -13,6 +13,12 @@ import kotlin.random.Random
  */
 class DemoTransport : EcuTransport {
 
+    companion object {
+        const val DEMO_VIN = "WBAFR7C50DC123456"
+        const val DEMO_I_LEVEL = "F010-20-03-540"
+        private val DEMO_SEED = byteArrayOf(0x11, 0x22, 0x33, 0x44)
+    }
+
     // key = (diagAddress shl 16) or did
     private val codingBlocks = HashMap<Int, ByteArray>()
     private val liveBlocks = HashMap<Int, ByteArray>()
@@ -53,6 +59,8 @@ class DemoTransport : EcuTransport {
                 faults.remove(diagAddress)
                 byteArrayOf((sid + 0x40).toByte())
             }
+            Uds.SID_SECURITY_ACCESS -> securityAccess(diagAddress, request)
+            Uds.SID_ROUTINE_CONTROL -> routineControl(request)
             else -> negative(sid, 0x11) // service not supported
         }
     }
@@ -60,6 +68,13 @@ class DemoTransport : EcuTransport {
     private fun readDid(diagAddress: Int, request: ByteArray): ByteArray {
         if (request.size < 3) return negative(Uds.SID_READ_DATA_BY_IDENTIFIER, 0x13)
         val did = ((request[1].toInt() and 0xFF) shl 8) or (request[2].toInt() and 0xFF)
+        val identity = identityPayload(did)
+        if (identity != null) {
+            return byteArrayOf(
+                (Uds.SID_READ_DATA_BY_IDENTIFIER + 0x40).toByte(),
+                (did shr 8).toByte(), did.toByte()
+            ) + identity
+        }
         val k = key(diagAddress, did)
         val data = when {
             liveBlocks.containsKey(k) -> jitter(liveBlocks.getValue(k))
@@ -92,6 +107,38 @@ class DemoTransport : EcuTransport {
             0xFF.toByte() // status availability mask
         )
         return records.fold(header) { acc, rec -> acc + rec }
+    }
+
+    private fun identityPayload(did: Int): ByteArray? = when (did) {
+        Uds.DID_VIN -> DEMO_VIN.toByteArray(Charsets.US_ASCII)
+        Uds.DID_I_LEVEL -> DEMO_I_LEVEL.toByteArray(Charsets.US_ASCII)
+        else -> null
+    }
+
+    private fun securityAccess(diagAddress: Int, request: ByteArray): ByteArray {
+        if (request.size < 2) return negative(Uds.SID_SECURITY_ACCESS, 0x13)
+        val level = request[1].toInt() and 0xFF
+        return when (level) {
+            Uds.SECURITY_REQUEST_SEED ->
+                byteArrayOf((Uds.SID_SECURITY_ACCESS + 0x40).toByte(), level.toByte()) + DEMO_SEED
+            Uds.SECURITY_SEND_KEY -> {
+                val key = if (request.size > 2) request.copyOfRange(2, request.size) else ByteArray(0)
+                val expected = XorSecurityKeyProvider.keyFor(diagAddress, Uds.SECURITY_REQUEST_SEED, DEMO_SEED)
+                if (!key.contentEquals(expected)) return negative(Uds.SID_SECURITY_ACCESS, 0x35)
+                byteArrayOf((Uds.SID_SECURITY_ACCESS + 0x40).toByte(), level.toByte())
+            }
+            else -> negative(Uds.SID_SECURITY_ACCESS, 0x12)
+        }
+    }
+
+    private fun routineControl(request: ByteArray): ByteArray {
+        if (request.size < 4) return negative(Uds.SID_ROUTINE_CONTROL, 0x13)
+        val sub = request[1].toInt() and 0xFF
+        if (sub != Uds.ROUTINE_START) return negative(Uds.SID_ROUTINE_CONTROL, 0x12)
+        return byteArrayOf(
+            (Uds.SID_ROUTINE_CONTROL + 0x40).toByte(),
+            request[1], request[2], request[3]
+        )
     }
 
     private fun negative(sid: Int, nrc: Int): ByteArray =

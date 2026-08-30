@@ -31,8 +31,9 @@ class BackupAdapter(
             backupModule.text = "${b.moduleName} · ${moduleFullHint(b)}"
             backupSource.text = b.source.name
             backupLabel.text = b.label
-            backupMeta.text = "DID 0x%04X · %d bytes · %s".format(
-                b.dataIdentifier, b.blockSize, DATE_FMT.format(Date(b.createdAt))
+            val vinBit = b.vin?.let { " · VIN ${it.takeLast(7)}" } ?: ""
+            backupMeta.text = "DID 0x%04X · %d bytes · %s%s".format(
+                b.dataIdentifier, b.blockSize, DATE_FMT.format(Date(b.createdAt)), vinBit
             )
             backupBytes.text = formatHex(b.blockHex)
             restoreButton.setOnClickListener { onRestore(b) }

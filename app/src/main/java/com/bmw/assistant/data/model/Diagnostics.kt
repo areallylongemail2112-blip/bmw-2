@@ -57,6 +57,7 @@ data class DemoFault(
 
 /** Root shape of the bundled `diagnostics_f10.json` asset. */
 data class DiagnosticsData(
+    val assetVersion: Int = 1,
     val liveData: List<LiveParameter> = emptyList(),
     val dtcCatalog: List<DtcCatalogEntry> = emptyList(),
     val demoFaults: List<DemoFault> = emptyList()

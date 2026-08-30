@@ -30,7 +30,9 @@ data class LiveRowUi(
     val id: String,
     val name: String,
     val description: String,
-    val value: String
+    val value: String,
+    val isError: Boolean = false,
+    val history: List<Float> = emptyList()
 )
 
 class DiagnosticsModuleViewModel(app: Application) : AndroidViewModel(app) {
@@ -173,13 +175,25 @@ class DiagnosticsModuleViewModel(app: Application) : AndroidViewModel(app) {
             // Open the extended session once for the whole batch, then read each value without
             // renegotiating it (best-effort: if the open fails, the reads below surface it).
             runCatching { engine.openSession(m) }
+            val previous = _liveRows.value.orEmpty().associateBy { it.id }
             liveParams.map { p ->
-                val text = try {
-                    engine.readLive(m, p, openSession = false)?.let { p.format(it) } ?: "n/a"
-                } catch (_: Exception) {
-                    "error"
+                val prior = previous[p.id]
+                try {
+                    val decoded = engine.readLive(m, p, openSession = false)
+                    if (decoded == null) {
+                        LiveRowUi(p.id, p.name, p.description, "n/a", isError = true, history = prior?.history.orEmpty())
+                    } else {
+                        val hist = (prior?.history.orEmpty() + decoded.toFloat()).takeLast(HISTORY)
+                        LiveRowUi(p.id, p.name, p.description, p.format(decoded), history = hist)
+                    }
+                } catch (e: Exception) {
+                    LiveRowUi(
+                        p.id, p.name, p.description,
+                        e.message ?: "Read failed",
+                        isError = true,
+                        history = prior?.history.orEmpty()
+                    )
                 }
-                LiveRowUi(p.id, p.name, p.description, text)
             }
         }
         _liveRows.postValue(rows)
@@ -215,6 +229,7 @@ class DiagnosticsModuleViewModel(app: Application) : AndroidViewModel(app) {
 
     companion object {
         private const val POLL_INTERVAL_MS = 1200L
+        private const val HISTORY = 24
         private const val NOT_CAPABLE =
             "This connection can't read diagnostics. Use ENET or demo mode."
     }

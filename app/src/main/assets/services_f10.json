@@ -1,0 +1,35 @@
+{
+  "_comment": "Illustrative F10 service routines (UDS 0x31). routineId is decimal. verified:false — demo runs them freely; hardware is blocked until you supply a verified definition for your car/I-level. These IDs are templates, not BMW PSdZData.",
+  "assetVersion": 1,
+  "services": [
+    {
+      "id": "cbs_oil_reset",
+      "moduleId": "kombi",
+      "name": "Oil service reset",
+      "description": "Reset the Condition Based Service oil interval on the instrument cluster.",
+      "longDescription": "Clears the oil-service CBS item after an oil change. The next reminder is calculated from the car’s remaining CBS data. Demo mode simulates success; on a real car this needs a verified routine ID for your I-level.",
+      "routineId": 43778,
+      "verified": false
+    },
+    {
+      "id": "cbs_brake_reset",
+      "moduleId": "kombi",
+      "name": "Brake service reset",
+      "description": "Reset the front/rear brake CBS interval after a pad change.",
+      "longDescription": "Marks the brake-service CBS item as done. Codes come back if the wear sensor still reports a fault. Hardware is blocked until the map is verified.",
+      "routineId": 43779,
+      "verified": false,
+      "warning": "Only reset after the pads and wear sensors have actually been replaced."
+    },
+    {
+      "id": "battery_register",
+      "moduleId": "dme",
+      "name": "Battery registration",
+      "description": "Tell the DME a new battery has been fitted so charging is recalculated.",
+      "longDescription": "After replacing the 12 V battery the DME needs a registration so IBS charging strategy matches the new unit. The bundled routine is illustrative — supply a verified definition (and any payload your car expects) before running it on hardware.",
+      "routineId": 43780,
+      "verified": false,
+      "warning": "Register the battery that is physically installed. A mismatch can under- or over-charge."
+    }
+  ]
+}

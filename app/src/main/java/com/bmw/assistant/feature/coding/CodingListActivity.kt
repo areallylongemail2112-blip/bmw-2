@@ -2,11 +2,13 @@ package com.bmw.assistant.feature.coding
 
 import android.content.Intent
 import android.os.Bundle
+import android.view.View
 import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.bmw.assistant.databinding.ActivityCodingListBinding
 import com.bmw.assistant.ui.common.ConnectionBadge
+import com.google.android.material.snackbar.Snackbar
 
 /** Every coding for the chosen module, shown as cards. */
 class CodingListActivity : AppCompatActivity() {
@@ -24,6 +26,7 @@ class CodingListActivity : AppCompatActivity() {
 
         ConnectionBadge.bind(binding.connectionChip, this, this)
         binding.toolbar.setNavigationOnClickListener { finish() }
+        binding.readFromCarButton.setOnClickListener { viewModel.syncFromCar() }
 
         val adapter = CodingAdapter { row ->
             startActivity(
@@ -35,10 +38,19 @@ class CodingListActivity : AppCompatActivity() {
         binding.codingList.adapter = adapter
 
         viewModel.module.observe(this) { m ->
-            binding.toolbar.title = m?.name ?: "Codings"
+            binding.toolbar.title = m?.name ?: getString(com.bmw.assistant.R.string.codings_title)
             binding.moduleSubtitle.text = m?.fullName ?: ""
         }
         viewModel.rows.observe(this) { adapter.submitList(it) }
+        viewModel.busy.observe(this) { busy ->
+            binding.progress.visibility = if (busy) View.VISIBLE else View.GONE
+            binding.readFromCarButton.isEnabled = !busy
+        }
+        viewModel.message.observe(this) { ev ->
+            ev.getIfNotHandled()?.let {
+                Snackbar.make(binding.root, it, Snackbar.LENGTH_LONG).show()
+            }
+        }
     }
 
     override fun onResume() {

@@ -78,14 +78,14 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="Fault codes"
+                        android:text="@string/fault_codes"
                         android:textAppearance="@style/CardTitle" />
 
                     <TextView
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:layout_marginTop="2dp"
-                        android:text="Read stored trouble codes (DTCs) from this module."
+                        android:text="@string/fault_codes_body"
                         android:textAppearance="@style/CardBody" />
 
                     <androidx.recyclerview.widget.RecyclerView
@@ -100,7 +100,7 @@
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:layout_marginTop="6dp"
-                        android:text="No fault codes stored. 🎉"
+                        android:text="@string/fault_empty"
                         android:textColor="@color/status_connected"
                         android:textStyle="bold"
                         android:visibility="gone" />

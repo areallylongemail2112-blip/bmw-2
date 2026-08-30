@@ -22,6 +22,8 @@ data class CodingBackup(
     val label: String,
     val source: BackupSource,
     val connectionLabel: String?,
+    val vin: String? = null,
+    val iLevel: String? = null,
     val createdAt: Long
 ) {
     val blockSize: Int get() = blockHex.length / 2

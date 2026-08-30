@@ -24,7 +24,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_gravity="end|center_vertical"
-                android:text="Not connected"
+                android:text="@string/not_connected"
                 android:textColor="@color/on_primary"
                 app:chipMinHeight="30dp"
                 app:chipBackgroundColor="@color/status_disconnected" />
@@ -82,7 +82,7 @@
                         android:layout_width="48dp"
                         android:layout_height="48dp"
                         android:background="@drawable/bg_icon_circle"
-                        android:contentDescription="Coding"
+                        android:contentDescription="@string/home_coding"
                         android:padding="12dp"
                         android:src="@drawable/ic_zap" />
 
@@ -96,14 +96,14 @@
                         <TextView
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="Coding"
+                            android:text="@string/home_coding"
                             android:textAppearance="@style/CardTitle" />
 
                         <TextView
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
                             android:layout_marginTop="2dp"
-                            android:text="Turn features on or off, in plain English."
+                            android:text="@string/home_coding_body"
                             android:textAppearance="@style/CardBody" />
                     </LinearLayout>
                 </LinearLayout>
@@ -133,7 +133,7 @@
                         android:layout_width="48dp"
                         android:layout_height="48dp"
                         android:background="@drawable/bg_icon_circle"
-                        android:contentDescription="Diagnostics"
+                        android:contentDescription="@string/home_diagnostics"
                         android:padding="12dp"
                         android:src="@drawable/ic_activity" />
 
@@ -147,14 +147,116 @@
                         <TextView
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="Diagnostics"
+                            android:text="@string/home_diagnostics"
                             android:textAppearance="@style/CardTitle" />
 
                         <TextView
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
                             android:layout_marginTop="2dp"
-                            android:text="Read fault codes and live sensor data."
+                            android:text="@string/home_diagnostics_body"
+                            android:textAppearance="@style/CardBody" />
+                    </LinearLayout>
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+            <!-- Services -->
+            <com.google.android.material.card.MaterialCardView
+                android:id="@+id/servicesCard"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                android:clickable="true"
+                android:focusable="true"
+                app:cardCornerRadius="16dp"
+                app:cardElevation="2dp"
+                app:strokeColor="@color/outline"
+                app:strokeWidth="1dp">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal"
+                    android:padding="18dp">
+
+                    <ImageView
+                        android:layout_width="48dp"
+                        android:layout_height="48dp"
+                        android:background="@drawable/bg_icon_circle"
+                        android:contentDescription="@string/home_services"
+                        android:padding="12dp"
+                        android:src="@drawable/ic_engine" />
+
+                    <LinearLayout
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="16dp"
+                        android:layout_weight="1"
+                        android:orientation="vertical">
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="@string/home_services"
+                            android:textAppearance="@style/CardTitle" />
+
+                        <TextView
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="2dp"
+                            android:text="@string/home_services_body"
+                            android:textAppearance="@style/CardBody" />
+                    </LinearLayout>
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+            <!-- Backups -->
+            <com.google.android.material.card.MaterialCardView
+                android:id="@+id/backupsCard"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                android:clickable="true"
+                android:focusable="true"
+                app:cardCornerRadius="16dp"
+                app:cardElevation="2dp"
+                app:strokeColor="@color/outline"
+                app:strokeWidth="1dp">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal"
+                    android:padding="18dp">
+
+                    <ImageView
+                        android:layout_width="48dp"
+                        android:layout_height="48dp"
+                        android:background="@drawable/bg_icon_circle"
+                        android:contentDescription="@string/home_backups"
+                        android:padding="12dp"
+                        android:src="@drawable/ic_backups" />
+
+                    <LinearLayout
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="16dp"
+                        android:layout_weight="1"
+                        android:orientation="vertical">
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="@string/home_backups"
+                            android:textAppearance="@style/CardTitle" />
+
+                        <TextView
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="2dp"
+                            android:text="@string/home_backups_body"
                             android:textAppearance="@style/CardBody" />
                     </LinearLayout>
                 </LinearLayout>
@@ -184,7 +286,7 @@
                         android:layout_width="48dp"
                         android:layout_height="48dp"
                         android:background="@drawable/bg_icon_circle"
-                        android:contentDescription="Connection"
+                        android:contentDescription="@string/home_connection"
                         android:padding="12dp"
                         android:src="@drawable/ic_link" />
 
@@ -198,14 +300,14 @@
                         <TextView
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="Connection"
+                            android:text="@string/home_connection"
                             android:textAppearance="@style/CardTitle" />
 
                         <TextView
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
                             android:layout_marginTop="2dp"
-                            android:text="Demo mode, ENET/WiFi, or a Bluetooth OBD adapter."
+                            android:text="@string/home_connection_body"
                             android:textAppearance="@style/CardBody" />
                     </LinearLayout>
                 </LinearLayout>
