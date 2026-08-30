@@ -76,7 +76,7 @@ minSdk 26 · targetSdk/compileSdk 34 · Java 17 · single APK.
    └─ src/main/
       ├─ AndroidManifest.xml                      # INTERNET + BLE perms, 7 activities
       ├─ assets/
-      │  ├─ codings_f10.json                      # coding definitions (26 codings / 5 modules)
+      │  ├─ codings_f10.json                      # coding definitions (37+ codings / 6 modules)
       │  └─ diagnostics_f10.json                  # live params + DTC catalog + demo faults
       ├─ res/                                      # layouts, drawables, theme
       └─ java/com/bmw/assistant/

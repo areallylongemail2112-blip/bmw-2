@@ -1,6 +1,6 @@
 {
   "_comment": "BMW F10 coding definitions. The ecuMap blocks describe HOW each value is encoded into a module coding byte (DID, byte offset, bit mask, value map). They are ILLUSTRATIVE and marked verified:false — the app writes them freely in demo mode but refuses to push an unverified map to real hardware. See README (How to add new coding entries) to supply verified maps.",
-  "assetVersion": 2,
+  "assetVersion": 3,
   "modules": [
     {
       "id": "frm",
@@ -49,6 +49,14 @@
       "description": "The engine control unit. Source of most live engine data (RPM, temperatures, load) and engine-related fault codes. Diagnostics-only in this app — engine coding is out of scope.",
       "iconName": "engine",
       "diagAddress": 18
+    },
+    {
+      "id": "kafas",
+      "name": "KAFAS",
+      "fullName": "Camera Driver Assistance",
+      "description": "Camera-based assistance: lane departure warning and related defaults.",
+      "iconName": "eye",
+      "diagAddress": 93
     }
   ],
   "codings": [
@@ -426,6 +434,163 @@
       "demoValue": "30",
       "f10Applicable": true,
       "ecuMap": { "dataIdentifier": 12352, "byteOffset": 4, "bitMask": 255, "scale": 1.0, "verified": false }
+    },
+    {
+      "id": "frm_drl",
+      "moduleId": "frm",
+      "name": "Daytime Running Lights",
+      "description": "Turns the daytime running lights on or off independently of the headlights.",
+      "longDescription": "Enables or disables the daytime running lights as a whole. Brightness is a separate coding. Some markets require DRLs; only turn them off if that is legal where you drive. Takes effect after the next ignition cycle.",
+      "valueType": "boolean",
+      "defaultValue": "true",
+      "safeDefault": "true",
+      "demoValue": "true",
+      "f10Applicable": true,
+      "ecuMap": { "dataIdentifier": 12288, "byteOffset": 6, "bitMask": 1, "encodedValues": { "true": "0x01", "false": "0x00" }, "verified": false }
+    },
+    {
+      "id": "frm_angel_eye_mode",
+      "moduleId": "frm",
+      "name": "Angel-Eye / DRL Mode",
+      "description": "How the halo / angel-eye rings behave in daylight versus parking-light mode.",
+      "longDescription": "F10 xenon and LED cars can run the angel-eye rings as daytime running lights, as parking lights only, or leave them off in daylight. Factory behaviour depends on market. Pick the mode that matches your lighting hardware — halogen-only cars will not show a visible change.",
+      "valueType": "enum",
+      "options": [
+        { "label": "DRL (rings on in daylight)", "value": "drl" },
+        { "label": "Parking lights only", "value": "parking" },
+        { "label": "Off in daylight", "value": "off" }
+      ],
+      "defaultValue": "drl",
+      "safeDefault": "drl",
+      "demoValue": "drl",
+      "f10Applicable": true,
+      "ecuMap": { "dataIdentifier": 12288, "byteOffset": 7, "bitMask": 255, "encodedValues": { "drl": "0x00", "parking": "0x01", "off": "0x02" }, "verified": false }
+    },
+    {
+      "id": "frm_comfort_blink",
+      "moduleId": "frm",
+      "name": "Comfort Turn-Signal Blinks",
+      "description": "How many times the indicators flash on a tap of the stalk (comfort blink).",
+      "longDescription": "A short tap of the turn-signal stalk flashes this many times instead of staying on. Factory is usually 3. 5 is popular for lane changes on faster roads. 1 disables comfort blink and requires you to hold the stalk.",
+      "valueType": "integer",
+      "min": 1,
+      "max": 5,
+      "unit": "blinks",
+      "defaultValue": "3",
+      "safeDefault": "3",
+      "demoValue": "3",
+      "f10Applicable": true,
+      "ecuMap": { "dataIdentifier": 12288, "byteOffset": 8, "bitMask": 255, "scale": 1.0, "verified": false }
+    },
+    {
+      "id": "frm_fog_with_high_beam",
+      "moduleId": "frm",
+      "name": "Fog Lights with High Beam",
+      "description": "Keeps the front fog lights on when you flash or hold high beam.",
+      "longDescription": "Factory coding often drops the fogs when high beam is on. Enabling this leaves them lit so the near-field stays illuminated on unlit roads. Only meaningful if front fogs are fitted.",
+      "valueType": "boolean",
+      "defaultValue": "false",
+      "safeDefault": "false",
+      "demoValue": "false",
+      "f10Applicable": true,
+      "ecuMap": { "dataIdentifier": 12288, "byteOffset": 9, "bitMask": 1, "encodedValues": { "true": "0x01", "false": "0x00" }, "verified": false }
+    },
+    {
+      "id": "kombi_service_interval",
+      "moduleId": "kombi",
+      "name": "Service-Interval Text",
+      "description": "Shows remaining Condition Based Service distance/time in the cluster.",
+      "longDescription": "Unlocks the CBS remaining-interval readout in the instrument cluster (oil, brakes, vehicle check). Without it some cars only show a generic service-due warning. The values themselves still come from CBS memory — this only reveals the text.",
+      "valueType": "boolean",
+      "defaultValue": "true",
+      "safeDefault": "true",
+      "demoValue": "true",
+      "f10Applicable": true,
+      "ecuMap": { "dataIdentifier": 12304, "byteOffset": 6, "bitMask": 1, "encodedValues": { "true": "0x01", "false": "0x00" }, "verified": false }
+    },
+    {
+      "id": "nbt_carplay",
+      "moduleId": "nbt",
+      "name": "Apple CarPlay",
+      "description": "Enables the Apple CarPlay entry in iDrive (region and head-unit dependent).",
+      "longDescription": "Reveals CarPlay in the NBT ConnectedDrive / Media menus on units that have the software and USB path for it. Region locks and I-level still apply — a US-only unit may not start CarPlay after this bit alone. Pairing still happens from the phone.",
+      "valueType": "boolean",
+      "defaultValue": "false",
+      "safeDefault": "false",
+      "demoValue": "true",
+      "warning": "CarPlay availability is region- and I-level-specific. This map is illustrative until verified against your head unit.",
+      "f10Applicable": true,
+      "ecuMap": { "dataIdentifier": 12320, "byteOffset": 5, "bitMask": 1, "encodedValues": { "true": "0x01", "false": "0x00" }, "verified": false }
+    },
+    {
+      "id": "nbt_legal_disclaimer",
+      "moduleId": "nbt",
+      "name": "Skip Legal Disclaimer",
+      "description": "Skips the long iDrive legal splash after each start, or shortens it.",
+      "longDescription": "NBT normally shows a legal disclaimer that you must confirm. Enabling this skips or shortens that screen so the last-used audio source appears sooner. It does not change any driving restriction.",
+      "valueType": "boolean",
+      "defaultValue": "false",
+      "safeDefault": "false",
+      "demoValue": "true",
+      "f10Applicable": true,
+      "ecuMap": { "dataIdentifier": 12320, "byteOffset": 6, "bitMask": 1, "encodedValues": { "true": "0x01", "false": "0x00" }, "verified": false }
+    },
+    {
+      "id": "cas_selective_unlock",
+      "moduleId": "cas",
+      "name": "Driver-Door Unlock First",
+      "description": "First unlock press opens only the driver door; a second press opens the rest.",
+      "longDescription": "CAS-side selective unlock. First fob press (or comfort-access handle) opens the driver door only. A second press unlocks the remaining doors and boot. Complements the lighting-side unlock behaviour on FRM.",
+      "valueType": "boolean",
+      "defaultValue": "false",
+      "safeDefault": "false",
+      "demoValue": "false",
+      "f10Applicable": true,
+      "ecuMap": { "dataIdentifier": 12352, "byteOffset": 5, "bitMask": 1, "encodedValues": { "true": "0x01", "false": "0x00" }, "verified": false }
+    },
+    {
+      "id": "cas_fold_mirrors",
+      "moduleId": "cas",
+      "name": "Fold Mirrors on Lock",
+      "description": "Folds the door mirrors automatically when you lock the car.",
+      "longDescription": "On cars with power-fold mirrors, locking (fob or comfort access) folds them in and unlocking unfolds them. Useful in tight streets and car parks. The motors must be fitted — coding alone will not add folding hardware.",
+      "valueType": "boolean",
+      "defaultValue": "false",
+      "safeDefault": "false",
+      "demoValue": "true",
+      "f10Applicable": true,
+      "ecuMap": { "dataIdentifier": 12352, "byteOffset": 6, "bitMask": 1, "encodedValues": { "true": "0x01", "false": "0x00" }, "verified": false }
+    },
+    {
+      "id": "cas_reverse_mirror_tilt",
+      "moduleId": "cas",
+      "name": "Tilt Passenger Mirror in Reverse",
+      "description": "Dips the passenger door mirror when you select reverse, then restores it.",
+      "longDescription": "Helps you see the kerb when reversing. The passenger mirror tilts down in reverse and returns when you leave reverse or exceed a low speed. Requires power-fold or memory-mirror hardware.",
+      "valueType": "boolean",
+      "defaultValue": "false",
+      "safeDefault": "false",
+      "demoValue": "true",
+      "f10Applicable": true,
+      "ecuMap": { "dataIdentifier": 12352, "byteOffset": 7, "bitMask": 1, "encodedValues": { "true": "0x01", "false": "0x00" }, "verified": false }
+    },
+    {
+      "id": "kafas_ldw_default",
+      "moduleId": "kafas",
+      "name": "Lane Departure Default",
+      "description": "Default state of lane-departure warning after each ignition on.",
+      "longDescription": "KAFAS can forget the last on/off choice and come back disabled (or always on) after a restart. This coding sets the default: last state, always on, or always off. The camera and option code must be present — this does not add lane keeping.",
+      "valueType": "enum",
+      "options": [
+        { "label": "Remember last setting", "value": "last" },
+        { "label": "On after start", "value": "on" },
+        { "label": "Off after start", "value": "off" }
+      ],
+      "defaultValue": "last",
+      "safeDefault": "last",
+      "demoValue": "last",
+      "f10Applicable": true,
+      "ecuMap": { "dataIdentifier": 12368, "byteOffset": 0, "bitMask": 255, "encodedValues": { "last": "0x00", "on": "0x01", "off": "0x02" }, "verified": false }
     }
   ]
 }

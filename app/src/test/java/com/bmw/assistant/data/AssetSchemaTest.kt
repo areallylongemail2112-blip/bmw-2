@@ -24,6 +24,28 @@ class AssetSchemaTest {
     }
 
     @Test
+    fun knowledgeBaseFeatures_areBundled() {
+        val data = gson.fromJson(readAsset("codings_f10.json"), CodingsData::class.java)
+        val ids = data.codings.map { it.id }.toSet()
+        val required = listOf(
+            "frm_cornering_lights", "frm_drl", "frm_drl_brightness", "frm_angel_eye_mode",
+            "frm_welcome_lights", "frm_farewell_animation", "frm_ambient_color", "frm_comfort_blink",
+            "kombi_gauge_sweep", "kombi_digital_speedo", "kombi_oil_temp", "kombi_speedo_unit",
+            "kombi_lap_timer", "kombi_startup_gong", "kombi_service_interval",
+            "nbt_video_in_motion", "nbt_speed_limit", "nbt_ambient_menu", "nbt_sport_display",
+            "nbt_screen_off_timer", "nbt_carplay",
+            "hud_speed_unit", "hud_nav_arrows", "hud_brightness", "hud_speed_warning",
+            "cas_auto_lock_speed", "cas_remote_window", "cas_comfort_entry",
+            "cas_selective_unlock", "cas_horn_on_lock", "cas_auto_relock",
+            "kafas_ldw_default"
+        )
+        val missing = required.filterNot { it in ids }
+        assertTrue("Missing coding ids: $missing", missing.isEmpty())
+        assertTrue(data.modules.any { it.id == "kafas" })
+        assertTrue(data.codings.size >= 37)
+    }
+
+    @Test
     fun bundledDiagnosticsAsset_isValid() {
         val data = gson.fromJson(readAsset("diagnostics_f10.json"), DiagnosticsData::class.java)
         AssetSchema.validateDiagnostics(data)
