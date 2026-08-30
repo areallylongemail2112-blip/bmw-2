@@ -16,20 +16,13 @@ class EnetNetworkBinder(context: Context) {
 
     fun bindPreferringLocalLan() {
         val manager = cm ?: return
-        val chosen = manager.allNetworks.firstOrNull { network ->
-            val caps = manager.getNetworkCapabilities(network) ?: return@firstOrNull false
-            caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) ||
-                caps.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) ||
-                caps.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET)
-        }?.takeIf { network ->
-            val caps = manager.getNetworkCapabilities(network) ?: return@takeIf false
-            caps.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) ||
-                caps.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET)
-        }
-        if (chosen != null) {
-            manager.bindProcessToNetwork(chosen)
-            bound = chosen
-        }
+        val network = manager.activeNetwork ?: return
+        val caps = manager.getNetworkCapabilities(network) ?: return
+        val localLan = caps.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) ||
+            caps.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET)
+        if (!localLan) return
+        manager.bindProcessToNetwork(network)
+        bound = network
     }
 
     fun unbind() {
