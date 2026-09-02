@@ -127,7 +127,8 @@ class EditCodingViewModel(app: Application) : AndroidViewModel(app) {
                                 blockHex = Hex.encodeCompact(before),
                                 label = "Before editing “${c.name}”",
                                 source = ConnectionManager.backupSource(),
-                                connectionLabel = ConnectionManager.current.label
+                                connectionLabel = ConnectionManager.current.label,
+                                vin = ConnectionManager.vin()
                             )
                         }
                     }

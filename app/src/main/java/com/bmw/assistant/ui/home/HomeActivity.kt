@@ -8,11 +8,12 @@ import com.bmw.assistant.feature.coding.CodingModulesActivity
 import com.bmw.assistant.feature.connection.ConnectionActivity
 import com.bmw.assistant.feature.diagnostics.DiagnosticsModulesActivity
 import com.bmw.assistant.ui.common.ConnectionBadge
+import com.bmw.assistant.ui.common.SafetyDisclaimer
 
 /**
- * The launcher screen and hub. Two paths: **Coding** (change what the car does, BimmerCode-
- * style) and **Diagnostics** (see what the car is doing, BimmerLink-style). The toolbar
- * connection chip is live on every screen.
+ * The launcher screen and hub. Two paths: **Coding** (change what the car does) and
+ * **Diagnostics** (see what the car is doing). The toolbar connection chip is live on every
+ * screen, and the one-time safety disclaimer is shown here before anything else.
  */
 class HomeActivity : AppCompatActivity() {
 
@@ -22,6 +23,9 @@ class HomeActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         binding = ActivityHomeBinding.inflate(layoutInflater)
         setContentView(binding.root)
+
+        // Nothing in the app may be used before the safety disclaimer is acknowledged.
+        SafetyDisclaimer.ensureAccepted(this)
 
         ConnectionBadge.bind(binding.connectionChip, this, this)
 

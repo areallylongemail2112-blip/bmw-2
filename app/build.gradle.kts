@@ -24,14 +24,14 @@ val hasReleaseSigning = keystorePath != null && file(keystorePath).exists()
 
 android {
     namespace = "com.bmw.assistant"
-    compileSdk = 34
+    compileSdk = 36
 
     defaultConfig {
         applicationId = "com.bmw.assistant"
         minSdk = 26
-        targetSdk = 34
-        versionCode = 2
-        versionName = "1.01"
+        targetSdk = 36
+        versionCode = 3
+        versionName = "1.1.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables { useSupportLibrary = true }
     }
@@ -49,7 +49,10 @@ android {
 
     buildTypes {
         release {
-            isMinifyEnabled = false
+            // R8 on: the coding catalog and the transport layer are the product, and an
+            // unshrunk debug-symbol-rich APK hands both over in full.
+            isMinifyEnabled = true
+            isShrinkResources = true
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"

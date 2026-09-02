@@ -177,12 +177,14 @@ class DiagnosticsModuleViewModel(app: Application) : AndroidViewModel(app) {
                 LiveRowUi(p.id, p.name, p.description, text)
             }
         }
-        if (rows == null) {
+        // Typed explicitly so the value published is provably non-null: LiveData is a Java
+        // class, so a null slipping through here would only fail at the observer.
+        val resolved: List<LiveRowUi> = rows ?: run {
             emit(NOT_CAPABLE)
             toggleAutoRefresh(false)
             return
         }
-        _liveRows.postValue(rows)
+        _liveRows.postValue(resolved)
     }
 
     /** True if a diagnostics-capable connection is live; otherwise emits a message and returns false. */

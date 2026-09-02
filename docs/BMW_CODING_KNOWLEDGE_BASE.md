@@ -311,3 +311,68 @@ UDS-over-DoIP transport as coding — no new protocol, just different services.
 > proprietary. The values shipped in the asset are **illustrative** and drive the offline demo
 > transport; matching them to a specific car is the same exercise as verifying a coding map.
 
+
+---
+
+## 6. Wire-level reference for the implemented transports
+
+Section 3 covers the protocols in principle. This section records the byte-level facts the
+transport code in `core/ecu/` is built on, with the sources they were taken from, so a reviewer can
+check the implementation without re-deriving them.
+
+> Everything here was verified against public documentation, **not against a car**. No session in
+> this repository has yet run against a real F10. The unit tests pin the encoding; only a physical
+> test can confirm the car agrees.
+
+### 6.1 HSFZ — the 2012 F10 ENET framing
+
+A 2010–2016 F10/F11 gateway speaks **HSFZ on TCP 6801**, not DoIP on 13400. This is the single most
+consequential fact for this app: pointing an F10 at 13400 simply fails to connect.
+
+| Field | Bytes | Meaning |
+|-------|-------|---------|
+| length | 4, big-endian | number of bytes **after** the control word, i.e. `2 + UDS length` |
+| control | 2, big-endian | `0x0001` diagnostic · `0x0002` acknowledge · `0x0011` vehicle identification · `0x0012` alive check · `0x0040`+ errors |
+| source | 1 | tester `0xF4` on requests, the ECU address on responses |
+| target | 1 | ECU address on requests, `0xF4` on responses |
+| payload | n | raw UDS bytes |
+
+There is no routing activation: the first diagnostic frame is the handshake. The gateway echoes each
+request as an acknowledge (`0x0002`) before forwarding the module's answer (`0x0001`), and sends
+alive checks (`0x0012`) that must be answered or it closes the TCP session.
+
+Discovery: broadcast a 6-byte frame `00 00 00 00 00 11` to **UDP 6811**; every gateway on the link
+answers with control `0x0011` and an identification string containing the VIN.
+
+*Sources:* scapy `contrib/automotive/bmw/hsfz.py`; `munich.dissec.to/kb/chapters/doip/doip.html`.
+
+### 6.2 D-CAN over an ELM327 dongle
+
+The OBD port exposes D-CAN at 500 kbit/s with 11-bit identifiers and **extended addressing**:
+
+- the tester transmits on CAN id `0x6F1`, each module answers on `0x600 + its diagnostic address`
+  (FRM `0x72` → `0x672`);
+- the **first data byte of every frame is the extended address**: the target module on requests,
+  `0xF1` (the tester) on responses;
+- that leaves 6 payload bytes in a single frame, 5 in a first frame and 6 per consecutive frame;
+- **frames must be padded to a full 8-byte data field.** F-series module stacks are configured for
+  fixed-length frames and a large share of them silently ignore a shorter one, so an unpadded flow
+  control or request is simply never answered.
+
+The adapter is configured for protocol 6 (`ATSP6`) with automatic formatting and flow control
+switched off (`ATCAF0`, `ATCFC0`), so ISO-TP is done in software. `ATCSM0` matters too: the OBD
+D-CAN link is a two-node bus, so a silent monitor would leave the gateway's frames unacknowledged
+and drive its controller error-passive.
+
+*Source:* `quantexlab.com/en/develop/elm327.html`, ELM327 datasheet (PP 2C protocol options, `AT MA`
+monitor behaviour).
+
+### 6.3 F-series diagnostic addresses
+
+ACSM `0x01` · TRSVC `0x06` · ZGW `0x10` · DME `0x12` · EGS `0x18` · ICM `0x1C` · DSC `0x29` ·
+ASD `0x3F` · CAS `0x40` · FZD `0x56` · KOMBI `0x60` · HU `0x63` · HUD `0x68` · SM `0x6D`/`0x6E` ·
+FRM `0x72` · IHKA `0x78` · JBBF `0x00`.
+
+A 2012 F10 uses **CAS4 + FRM3 + JBBF**; there is no FEM/REM (those are G-series and late F-series).
+
+*Source:* `github.com/packetpilot/bmw-f`.

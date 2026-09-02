@@ -86,6 +86,7 @@ class BackupsViewModel(app: Application) : AndroidViewModel(app) {
                 try {
                     val source = ConnectionManager.backupSource()
                     val label = ConnectionManager.current.label
+                    val vin = ConnectionManager.vin()
                     var count = 0
                     val seen = HashSet<Pair<String, Int>>()
                     for (module in repo.getModules()) {
@@ -100,7 +101,8 @@ class BackupsViewModel(app: Application) : AndroidViewModel(app) {
                                 blockHex = Hex.encodeCompact(block),
                                 label = "Manual backup",
                                 source = source,
-                                connectionLabel = label
+                                connectionLabel = label,
+                                vin = vin
                             )
                             if (added) count++
                         }

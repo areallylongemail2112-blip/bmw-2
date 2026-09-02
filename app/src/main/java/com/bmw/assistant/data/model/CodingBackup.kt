@@ -11,6 +11,9 @@ package com.bmw.assistant.data.model
  * @param source where the bytes came from (demo vs. real hardware). A backup can only be
  *   restored onto the same kind of connection: demo snapshots never reach a real car, and
  *   hardware snapshots are not applied to the simulator.
+ * @param vin the car the bytes were read from, when it could be identified. A hardware backup
+ *   is refused on a car with a different VIN — coding bytes are only meaningful for the exact
+ *   module they came from.
  */
 data class CodingBackup(
     val id: Long,
@@ -22,7 +25,8 @@ data class CodingBackup(
     val label: String,
     val source: BackupSource,
     val connectionLabel: String?,
-    val createdAt: Long
+    val createdAt: Long,
+    val vin: String? = null
 ) {
     val blockSize: Int get() = blockHex.length / 2
 }

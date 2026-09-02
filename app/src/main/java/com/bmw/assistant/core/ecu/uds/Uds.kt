@@ -31,6 +31,9 @@ object Uds {
     const val SID_WRITE_DATA_BY_IDENTIFIER = 0x2E
     const val SID_TESTER_PRESENT = 0x3E
 
+    /** Standard "VIN" data identifier (ISO 14229 / ISO 15031-5). */
+    const val DID_VIN = 0xF190
+
     // --- session types ---
     const val SESSION_DEFAULT = 0x01
     const val SESSION_EXTENDED = 0x03

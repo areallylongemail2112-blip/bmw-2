@@ -10,6 +10,7 @@ package com.bmw.assistant.core.ecu
  *   - [DemoTransport]      fully offline simulation (no hardware) — supports coding + diagnostics
  *   - [EnetHsfzTransport]  real ENET over TCP 6801 (HSFZ) — what a 2012 F10 gateway speaks
  *   - [EnetDoipTransport]  real ENET/DoIP over TCP 13400 (G-series / late F-series gateways)
+ *     (both build on [FramedTcpTransport], which owns framing, response correlation and timeouts)
  *   - [com.bmw.assistant.core.ecu.obd.Elm327Transport]  ELM327/STN OBD dongles over Bluetooth
  *     Classic, BLE or WiFi, using BMW's extended-addressed ISO-TP on the D-CAN bus
  *
@@ -30,9 +31,10 @@ interface EcuTransport {
     val description: String get() = javaClass.simpleName
 
     /**
-     * Largest UDS request this link can carry. ENET carries whole blocks; a plain ELM327 over
-     * CAN can only send single-frame requests. Coding writes larger than this are refused
-     * with a clear message instead of silently truncating.
+     * Largest UDS request this link can carry in one exchange. ENET carries whole blocks; an
+     * OBD adapter is bounded by ISO-TP's 12-bit length field. [com.bmw.assistant.core.coding.CodingEngine]
+     * checks this before every write, so an oversized coding block is refused with a clear
+     * message instead of being silently truncated on the wire.
      */
     val maxRequestLength: Int get() = 4095
 

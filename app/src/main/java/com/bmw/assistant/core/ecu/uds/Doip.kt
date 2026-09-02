@@ -19,6 +19,9 @@ object Doip {
     const val PROTOCOL_VERSION = 0x02
     const val PORT = 13400
 
+    /** Bytes before the payload: version, inverse version, 2-byte type, 4-byte length. */
+    const val HEADER_SIZE = 8
+
     /** Hard cap so a corrupted length field cannot force an OOM. */
     const val MAX_PAYLOAD_LENGTH = 64 * 1024
 
@@ -71,16 +74,25 @@ object Doip {
         return if (vin.all { it.isLetterOrDigit() }) vin else null
     }
 
+    /** Payload length announced by a [HEADER_SIZE]-byte header. */
+    fun payloadLength(header: ByteArray): Int {
+        if (header.size < HEADER_SIZE) return -1
+        return ((header[4].toInt() and 0xFF) shl 24) or
+            ((header[5].toInt() and 0xFF) shl 16) or
+            ((header[6].toInt() and 0xFF) shl 8) or
+            (header[7].toInt() and 0xFF)
+    }
+
     /** Parses a complete datagram into a frame, or null when malformed. */
     fun parse(bytes: ByteArray): Frame? {
-        if (bytes.size < 8) return null
+        if (bytes.size < HEADER_SIZE) return null
+        val protoVer = bytes[0].toInt() and 0xFF
+        val inverse = bytes[1].toInt() and 0xFF
+        if (protoVer != PROTOCOL_VERSION || inverse != (PROTOCOL_VERSION.inv() and 0xFF)) return null
         val payloadType = ((bytes[2].toInt() and 0xFF) shl 8) or (bytes[3].toInt() and 0xFF)
-        val len = ((bytes[4].toInt() and 0xFF) shl 24) or
-            ((bytes[5].toInt() and 0xFF) shl 16) or
-            ((bytes[6].toInt() and 0xFF) shl 8) or
-            (bytes[7].toInt() and 0xFF)
-        if (len < 0 || 8 + len > bytes.size) return null
-        return Frame(payloadType, bytes.copyOfRange(8, 8 + len))
+        val len = payloadLength(bytes)
+        if (len < 0 || HEADER_SIZE + len > bytes.size) return null
+        return Frame(payloadType, bytes.copyOfRange(HEADER_SIZE, HEADER_SIZE + len))
     }
 
     fun diagnosticMessage(source: Int, target: Int, uds: ByteArray): ByteArray {

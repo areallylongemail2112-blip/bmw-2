@@ -22,6 +22,10 @@ import com.bmw.assistant.data.model.ValueType
  * coding item carries a `verified` map. The illustrative maps bundled in the JSON asset are
  * for demo only; pushing an unverified byte offset to a real module can brick it. Demo mode
  * bypasses the gate because nothing physical is touched.
+ *
+ * Every write is verified by reading the block back. If the module holds anything other than
+ * what was sent, the original block is written back immediately and the operation fails, so a
+ * dropped frame on a cheap OBD adapter cannot leave a half-applied coding in the car.
  */
 class CodingEngine(private val transport: EcuTransport, private val isDemo: Boolean) {
 
@@ -64,8 +68,44 @@ class CodingEngine(private val transport: EcuTransport, private val isDemo: Bool
         val merged = (existing and map.bitMask.inv()) or (rawValue and map.bitMask)
         working[map.byteOffset] = merged.toByte()
 
+        checkRequestLength(map.dataIdentifier, working)
         uds.writeDataByIdentifier(module.diagAddress, map.dataIdentifier, working)
+        verifyWrite(module, map.dataIdentifier, expected = working, original = block)
         return merged.toByte()
+    }
+
+    /**
+     * Refuses a write the active link cannot carry in one UDS request. A truncated coding block
+     * is the one thing that must never reach a module.
+     */
+    private fun checkRequestLength(dataIdentifier: Int, block: ByteArray) {
+        val requestLength = 3 + block.size // SID + DID(2) + data
+        if (requestLength > transport.maxRequestLength) {
+            throw EcuException(
+                "Coding block 0x%04X is %d bytes; this connection can only send %d-byte requests. ".format(
+                    dataIdentifier, block.size, transport.maxRequestLength
+                ) + "Use an ENET cable or an STN-based adapter."
+            )
+        }
+    }
+
+    /**
+     * Reads the block back after a write and compares it with what was sent. On a mismatch the
+     * [original] bytes are restored (best effort) and an [EcuException] is raised.
+     */
+    private fun verifyWrite(module: Module, dataIdentifier: Int, expected: ByteArray, original: ByteArray) {
+        val readBack = uds.readDataByIdentifier(module.diagAddress, dataIdentifier)
+        if (readBack.contentEquals(expected)) return
+        val restored = runCatching {
+            uds.writeDataByIdentifier(module.diagAddress, dataIdentifier, original)
+            uds.readDataByIdentifier(module.diagAddress, dataIdentifier).contentEquals(original)
+        }.getOrDefault(false)
+        throw EcuException(
+            "Verification failed: module 0x%02X block 0x%04X does not hold the written bytes. ".format(
+                module.diagAddress, dataIdentifier
+            ) + if (restored) "The original coding was restored."
+            else "Restoring the original coding also failed — restore it from Backups before driving."
+        )
     }
 
     /**
@@ -92,7 +132,16 @@ class CodingEngine(private val transport: EcuTransport, private val isDemo: Bool
             throw EcuException("The active connection cannot write coding data. Use ENET or demo mode.")
         }
         if (block.isEmpty()) throw EcuException("Backup block is empty — nothing to restore.")
+        checkRequestLength(dataIdentifier, block)
         uds.writeDataByIdentifier(module.diagAddress, dataIdentifier, block)
+        val readBack = uds.readDataByIdentifier(module.diagAddress, dataIdentifier)
+        if (!readBack.contentEquals(block)) {
+            throw EcuException(
+                "Verification failed: module 0x%02X block 0x%04X does not match the backup after restore.".format(
+                    module.diagAddress, dataIdentifier
+                )
+            )
+        }
     }
 
     /** Reads the current byte for a coding and decodes it back to a friendly value. */

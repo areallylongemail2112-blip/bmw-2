@@ -31,12 +31,23 @@ class CodingRepository private constructor(
 ) {
     private val gson = Gson()
 
-    /** Seed the database from the JSON asset the first time the app runs. */
+    /**
+     * Seeds (or re-seeds) module/coding definitions from the bundled JSON asset whenever the
+     * asset's `catalogVersion` is newer than the one last written to the database, so an app
+     * update actually delivers new maps to existing installs. Values and backups are kept —
+     * they are keyed by coding id, not by row.
+     */
     suspend fun ensureSeeded() = withContext(Dispatchers.IO) {
-        if (dao.moduleCount() > 0) return@withContext
+        val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+        val seeded = prefs.getInt(KEY_CATALOG_VERSION, 0)
         val data = CodingAssetLoader.load(context)
+        val assetVersion = data.catalogVersion
+        if (dao.moduleCount() > 0 && seeded >= assetVersion) return@withContext
+        dao.deleteAllCodings()
+        dao.deleteAllModules()
         dao.insertModules(data.modules.map { it.toEntity() })
         dao.insertCodings(data.codings.map { it.toEntity() })
+        prefs.edit().putInt(KEY_CATALOG_VERSION, assetVersion).apply()
     }
 
     /**
@@ -96,7 +107,8 @@ class CodingRepository private constructor(
         blockHex: String,
         label: String,
         source: BackupSource,
-        connectionLabel: String?
+        connectionLabel: String?,
+        vin: String? = null
     ): Boolean = withContext(Dispatchers.IO) {
         val latest = dao.latestBackupForBlock(module.id, dataIdentifier, source.name)
         if (latest?.blockHex == blockHex) return@withContext false
@@ -110,7 +122,8 @@ class CodingRepository private constructor(
                 label = label,
                 source = source.name,
                 connectionLabel = connectionLabel,
-                createdAt = System.currentTimeMillis()
+                createdAt = System.currentTimeMillis(),
+                vin = vin
             )
         )
         true
@@ -134,7 +147,8 @@ class CodingRepository private constructor(
         label = label,
         source = runCatching { BackupSource.valueOf(source) }.getOrDefault(BackupSource.DEMO),
         connectionLabel = connectionLabel,
-        createdAt = createdAt
+        createdAt = createdAt,
+        vin = vin
     )
 
     private fun Module.toEntity() =
@@ -192,6 +206,9 @@ class CodingRepository private constructor(
     }
 
     companion object {
+        private const val PREFS = "coding_catalog"
+        private const val KEY_CATALOG_VERSION = "catalog_version"
+
         @Volatile private var instance: CodingRepository? = null
 
         fun get(context: Context): CodingRepository =

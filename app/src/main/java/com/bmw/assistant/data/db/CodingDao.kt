@@ -17,6 +17,12 @@ interface CodingDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertCodings(codings: List<CodingEntity>)
 
+    @Query("DELETE FROM modules")
+    suspend fun deleteAllModules()
+
+    @Query("DELETE FROM codings")
+    suspend fun deleteAllCodings()
+
     @Query("SELECT * FROM modules ORDER BY name")
     suspend fun getModules(): List<ModuleEntity>
 
