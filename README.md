@@ -67,7 +67,7 @@ module's original bytes before changing them, and keep the battery charged.
 | Coding | **`CodingEngine`** | Read-modify-write of one coding byte, with the verified-map safety gate. |
 | Diagnostics | **`DiagnosticsEngine`** | Fault read/clear (UDS 0x19/0x14) and live-value read/decode (UDS 0x22). |
 
-minSdk 26 · targetSdk/compileSdk 34 · Java 17 · single APK.
+minSdk 26 · targetSdk/compileSdk 36 · Java 17 · single APK.
 
 ### Project layout
 
