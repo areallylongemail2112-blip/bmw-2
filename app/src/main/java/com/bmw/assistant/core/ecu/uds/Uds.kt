@@ -54,6 +54,13 @@ object Uds {
     fun testerPresent(): ByteArray =
         byteArrayOf(SID_TESTER_PRESENT.toByte(), 0x00)
 
+    /** ECUReset: 0x01 hard, 0x03 soft (key-off/on equivalent on most F-series modules). */
+    const val RESET_HARD = 0x01
+    const val RESET_SOFT = 0x03
+
+    fun ecuReset(resetType: Int = RESET_SOFT): ByteArray =
+        byteArrayOf(SID_ECU_RESET.toByte(), resetType.toByte())
+
     fun readDataByIdentifier(did: Int): ByteArray =
         byteArrayOf(SID_READ_DATA_BY_IDENTIFIER.toByte(), (did shr 8).toByte(), did.toByte())
 

@@ -31,12 +31,38 @@ class CodingRepository private constructor(
 ) {
     private val gson = Gson()
 
-    /** Seed the database from the JSON asset the first time the app runs. */
+    /** Seed (or re-seed) the database from the bundled JSON when empty or when the asset version bumps. */
     suspend fun ensureSeeded() = withContext(Dispatchers.IO) {
-        if (dao.moduleCount() > 0) return@withContext
         val data = CodingAssetLoader.load(context)
+        val stored = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+            .getInt(KEY_ASSET_VERSION, 0)
+        if (dao.moduleCount() > 0 && stored >= data.assetVersion) return@withContext
+        dao.deleteAllCodings()
+        dao.deleteAllModules()
         dao.insertModules(data.modules.map { it.toEntity() })
         dao.insertCodings(data.codings.map { it.toEntity() })
+        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+            .edit()
+            .putInt(KEY_ASSET_VERSION, data.assetVersion)
+            .apply()
+    }
+
+    /**
+     * Overlay verified ECU maps imported by the user (from their own CAFD/NCD). Matching
+     * coding ids have their map replaced and marked verified so hardware writes are allowed.
+     * @return number of catalog entries updated.
+     */
+    suspend fun importVerifiedMaps(patches: List<VerifiedMapPatch>): Int = withContext(Dispatchers.IO) {
+        var updated = 0
+        val toWrite = ArrayList<CodingEntity>()
+        for (patch in patches) {
+            val existing = dao.getCoding(patch.id) ?: continue
+            val map = patch.ecuMap.copy(verified = true)
+            toWrite += existing.copy(ecuMapJson = gson.toJson(map))
+            updated++
+        }
+        if (toWrite.isNotEmpty()) dao.insertCodings(toWrite)
+        updated
     }
 
     /**
@@ -192,6 +218,9 @@ class CodingRepository private constructor(
     }
 
     companion object {
+        private const val PREFS = "bmw_assistant"
+        private const val KEY_ASSET_VERSION = "coding_asset_version"
+
         @Volatile private var instance: CodingRepository? = null
 
         fun get(context: Context): CodingRepository =

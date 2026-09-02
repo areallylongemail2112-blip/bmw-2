@@ -1,335 +1,1679 @@
 {
-  "_comment": "BMW F10 coding definitions. The ecuMap blocks describe HOW each value is encoded into a module coding byte (DID, byte offset, bit mask, value map). They are ILLUSTRATIVE and marked verified:false — the app writes them freely in demo mode but refuses to push an unverified map to real hardware. See README (How to add new coding entries) to supply verified maps.",
+  "_comment": "BMW F10 (2012) coding catalog. Screenshot BimmerCode categories are mapped to F10 modules (FRM not FEM, JBBF not REM). ecuMap blocks are ILLUSTRATIVE and verified:false \u2014 the app writes them in demo mode and refuses them on a real car until you import maps from your own CAFD/NCD. See README.",
+  "assetVersion": 3,
+  "chassis": "F10",
+  "modelYear": 2012,
   "modules": [
+    {
+      "id": "asd",
+      "name": "ASD",
+      "fullName": "Active Sound Design",
+      "description": "Active Sound Design",
+      "iconName": "speaker",
+      "diagAddress": 63
+    },
+    {
+      "id": "acsm",
+      "name": "ACSM",
+      "fullName": "Advanced Crash Safety Module",
+      "description": "Seat belt reminder",
+      "iconName": "seatbelt",
+      "diagAddress": 1
+    },
+    {
+      "id": "ihka",
+      "name": "IHKA",
+      "fullName": "Air Conditioning",
+      "description": "Air Conditioning",
+      "iconName": "snowflake",
+      "diagAddress": 120
+    },
+    {
+      "id": "trsvc",
+      "name": "TRSVC",
+      "fullName": "Allround View Camera",
+      "description": "Side view camera",
+      "iconName": "camera",
+      "diagAddress": 6
+    },
+    {
+      "id": "egs",
+      "name": "EGS",
+      "fullName": "Electronic Transmission Control",
+      "description": "Transmission",
+      "iconName": "gears",
+      "diagAddress": 24
+    },
     {
       "id": "frm",
       "name": "FRM",
-      "fullName": "Footwell Module",
-      "description": "Controls all exterior and interior lighting: headlights, fog lights, DRLs, welcome/farewell sequences, and ambient cabin lighting.",
-      "iconName": "zap",
+      "fullName": "Front Electronic Module",
+      "description": "Auto Start Stop function, doors/windows, lighting, mirrors (F10 FRM3 \u2014 this car has no FEM)",
+      "iconName": "mirror",
       "diagAddress": 114
+    },
+    {
+      "id": "hu",
+      "name": "HU",
+      "fullName": "Headunit",
+      "description": "Audio, display options iDrive system, video (CIC on a 2012 F10)",
+      "iconName": "play",
+      "diagAddress": 99
     },
     {
       "id": "kombi",
       "name": "KOMBI",
       "fullName": "Instrument Cluster",
-      "description": "Manages the gauge cluster display, needle sweep animations, digital readouts, and driver information screens.",
+      "description": "Display options instrument cluster, driving mode, fuel reserve warnings",
       "iconName": "activity",
       "diagAddress": 96
     },
     {
-      "id": "nbt",
-      "name": "NBT",
-      "fullName": "Navigation & Infotainment",
-      "description": "Controls the iDrive infotainment system, navigation display, video playback rules, and connected device behavior.",
-      "iconName": "monitor",
-      "diagAddress": 99
+      "id": "icm",
+      "name": "ICM",
+      "fullName": "Integrated Chassis Management",
+      "description": "Active Cruise Control, driving mode",
+      "iconName": "steering",
+      "diagAddress": 28
     },
     {
-      "id": "hud",
-      "name": "HUD",
-      "fullName": "Head-Up Display",
-      "description": "Configures the windshield-projected display including speed units, navigation prompts, and brightness.",
-      "iconName": "eye",
-      "diagAddress": 104
+      "id": "jbbf",
+      "name": "JBBF",
+      "fullName": "Rear Electronic Module",
+      "description": "PDC (Park Distance Control), rear lighting, rear view camera (F10 JBBF \u2014 this car has no REM)",
+      "iconName": "pdc",
+      "diagAddress": 0
+    },
+    {
+      "id": "fzd",
+      "name": "FZD",
+      "fullName": "Roof Function Center",
+      "description": "Acoustical confirmation, alarm system",
+      "iconName": "dome",
+      "diagAddress": 86
+    },
+    {
+      "id": "sm_fa",
+      "name": "SM",
+      "fullName": "Seat Module Driver",
+      "description": "Seat heating",
+      "iconName": "seat",
+      "diagAddress": 109
+    },
+    {
+      "id": "hkl",
+      "name": "HKL",
+      "fullName": "Tailgate Function Module",
+      "description": "Tailgate",
+      "iconName": "tailgate",
+      "diagAddress": 108
+    },
+    {
+      "id": "pdc",
+      "name": "PDC",
+      "fullName": "Park Distance Control",
+      "description": "Parking sensors, volume and auto-on",
+      "iconName": "pdc",
+      "diagAddress": 7
     },
     {
       "id": "cas",
       "name": "CAS",
       "fullName": "Car Access System",
-      "description": "Manages key fob functions, door lock behavior, and comfort access features.",
+      "description": "Keys, locking, comfort access, windows",
       "iconName": "key",
       "diagAddress": 64
     },
     {
+      "id": "hud",
+      "name": "HUD",
+      "fullName": "Head-Up Display",
+      "description": "Windshield projection content and brightness",
+      "iconName": "eye",
+      "diagAddress": 104
+    },
+    {
       "id": "dme",
       "name": "DME",
-      "fullName": "Engine Control (Digital Motor Electronics)",
-      "description": "The engine control unit. Source of most live engine data (RPM, temperatures, load) and engine-related fault codes. Diagnostics-only in this app — engine coding is out of scope.",
+      "fullName": "Engine Control",
+      "description": "Auto Start-Stop and engine live data",
       "iconName": "engine",
       "diagAddress": 18
     }
   ],
   "codings": [
     {
-      "id": "frm_cornering_lights",
-      "moduleId": "frm",
-      "name": "Cornering Lights",
-      "description": "Uses the front fog lights as cornering lights when turning at low speed.",
-      "longDescription": "When enabled, the front fog light on the side you are turning toward will activate as a supplemental cornering light whenever you make a slow turn (under 40 km/h) or engage the parking sensors at low speed. This dramatically improves visibility in dark car parks and tight corners. The fog lights must be physically installed for this feature to work.",
+      "id": "asd_enable",
+      "moduleId": "asd",
+      "name": "Active Sound Design",
+      "description": "Turns the interior engine-sound speaker on or off.",
+      "longDescription": "Active Sound Design plays a synthesized engine note through a dedicated speaker so the cabin sounds sportier. Disable it for a quieter interior. Hardware must be fitted; coding a car without ASD does nothing audible.",
+      "valueType": "boolean",
+      "defaultValue": "true",
+      "safeDefault": "true",
+      "demoValue": "true",
+      "f10Applicable": true,
+      "ecuMap": {
+        "dataIdentifier": 12368,
+        "byteOffset": 0,
+        "bitMask": 1,
+        "encodedValues": {
+          "true": "0x01",
+          "false": "0x00"
+        },
+        "verified": false
+      }
+    },
+    {
+      "id": "asd_volume",
+      "moduleId": "asd",
+      "name": "ASD Volume",
+      "description": "Cabin volume of the Active Sound Design speaker.",
+      "longDescription": "0 is silent, 100 is the loudest profile the module will play. Start around 40 if you are trying the feature for the first time.",
+      "valueType": "integer",
+      "min": 0,
+      "max": 100,
+      "defaultValue": "40",
+      "safeDefault": "40",
+      "demoValue": "55",
+      "f10Applicable": true,
+      "ecuMap": {
+        "dataIdentifier": 12368,
+        "byteOffset": 1,
+        "bitMask": 255,
+        "scale": 1.0,
+        "verified": false
+      },
+      "unit": "%"
+    },
+    {
+      "id": "acsm_seatbelt_reminder",
+      "moduleId": "acsm",
+      "name": "Seat Belt Reminder",
+      "description": "Chimes when a front occupant is unbelted.",
+      "longDescription": "The crash-safety module owns the seat-belt reminder. Leave this on for safety; turning it off only silences the chime \u2014 the belt warning lamp in the cluster can still light.",
+      "valueType": "boolean",
+      "defaultValue": "true",
+      "safeDefault": "true",
+      "demoValue": "true",
+      "f10Applicable": true,
+      "ecuMap": {
+        "dataIdentifier": 12384,
+        "byteOffset": 0,
+        "bitMask": 1,
+        "encodedValues": {
+          "true": "0x01",
+          "false": "0x00"
+        },
+        "verified": false
+      }
+    },
+    {
+      "id": "acsm_passenger_reminder",
+      "moduleId": "acsm",
+      "name": "Passenger Belt Reminder",
+      "description": "Also chimes for an unbelted front passenger.",
+      "longDescription": "When enabled, the passenger occupancy sensor triggers the same reminder as the driver belt.",
+      "valueType": "boolean",
+      "defaultValue": "true",
+      "safeDefault": "true",
+      "demoValue": "true",
+      "f10Applicable": true,
+      "ecuMap": {
+        "dataIdentifier": 12384,
+        "byteOffset": 1,
+        "bitMask": 1,
+        "encodedValues": {
+          "true": "0x01",
+          "false": "0x00"
+        },
+        "verified": false
+      }
+    },
+    {
+      "id": "acsm_chime_volume",
+      "moduleId": "acsm",
+      "name": "Reminder Chime Volume",
+      "description": "How loud the seat-belt reminder chime is.",
+      "longDescription": "Does not disable the reminder, only how insistent it sounds.",
+      "valueType": "integer",
+      "min": 10,
+      "max": 100,
+      "defaultValue": "70",
+      "safeDefault": "70",
+      "demoValue": "80",
+      "f10Applicable": true,
+      "ecuMap": {
+        "dataIdentifier": 12384,
+        "byteOffset": 2,
+        "bitMask": 255,
+        "scale": 1.0,
+        "verified": false
+      },
+      "unit": "%"
+    },
+    {
+      "id": "ihka_recirc_memory",
+      "moduleId": "ihka",
+      "name": "Recirculation Memory",
+      "description": "Remembers the last recirculation setting after you switch the car off.",
+      "longDescription": "Factory default often returns to fresh air at every start. Enable this so the last recirc choice is restored.",
       "valueType": "boolean",
       "defaultValue": "false",
       "safeDefault": "false",
       "demoValue": "true",
       "f10Applicable": true,
-      "ecuMap": { "dataIdentifier": 12288, "byteOffset": 0, "bitMask": 1, "encodedValues": { "true": "0x01", "false": "0x00" }, "verified": false }
+      "ecuMap": {
+        "dataIdentifier": 12400,
+        "byteOffset": 0,
+        "bitMask": 1,
+        "encodedValues": {
+          "true": "0x01",
+          "false": "0x00"
+        },
+        "verified": false
+      }
+    },
+    {
+      "id": "ihka_comfort_ventilation",
+      "moduleId": "ihka",
+      "name": "Comfort Ventilation",
+      "description": "Runs the blower briefly after lock on a hot day to vent the cabin.",
+      "longDescription": "Uses residual battery. Disable if you park for long periods without a trickle charger.",
+      "valueType": "boolean",
+      "defaultValue": "false",
+      "safeDefault": "false",
+      "demoValue": "false",
+      "f10Applicable": true,
+      "ecuMap": {
+        "dataIdentifier": 12400,
+        "byteOffset": 1,
+        "bitMask": 1,
+        "encodedValues": {
+          "true": "0x01",
+          "false": "0x00"
+        },
+        "verified": false
+      }
+    },
+    {
+      "id": "ihka_auto_on_ignition",
+      "moduleId": "ihka",
+      "name": "Climate Auto-Start",
+      "description": "Climate control starts automatically with the ignition.",
+      "longDescription": "When off you must press AUTO or A/C each drive. When on, last climate settings resume with the ignition.",
+      "valueType": "boolean",
+      "defaultValue": "true",
+      "safeDefault": "true",
+      "demoValue": "true",
+      "f10Applicable": true,
+      "ecuMap": {
+        "dataIdentifier": 12400,
+        "byteOffset": 2,
+        "bitMask": 1,
+        "encodedValues": {
+          "true": "0x01",
+          "false": "0x00"
+        },
+        "verified": false
+      }
+    },
+    {
+      "id": "trsvc_side_view",
+      "moduleId": "trsvc",
+      "name": "Side View Camera",
+      "description": "Shows the side-view camera picture when you indicate at low speed.",
+      "longDescription": "Part of Surround View / Allround View. The cameras and TRSVC module must be fitted. On a 2012 F10 this is typically a dealer or retrofit option.",
+      "valueType": "boolean",
+      "defaultValue": "false",
+      "safeDefault": "false",
+      "demoValue": "true",
+      "f10Applicable": true,
+      "ecuMap": {
+        "dataIdentifier": 12416,
+        "byteOffset": 0,
+        "bitMask": 1,
+        "encodedValues": {
+          "true": "0x01",
+          "false": "0x00"
+        },
+        "verified": false
+      }
+    },
+    {
+      "id": "trsvc_guidelines",
+      "moduleId": "trsvc",
+      "name": "Rear Camera Guidelines",
+      "description": "Draws steering-linked parking guidelines on the rear camera image.",
+      "longDescription": "Guidelines move with the steering angle. Disable if you prefer a clean camera picture.",
+      "valueType": "boolean",
+      "defaultValue": "true",
+      "safeDefault": "true",
+      "demoValue": "true",
+      "f10Applicable": true,
+      "ecuMap": {
+        "dataIdentifier": 12416,
+        "byteOffset": 1,
+        "bitMask": 1,
+        "encodedValues": {
+          "true": "0x01",
+          "false": "0x00"
+        },
+        "verified": false
+      }
+    },
+    {
+      "id": "trsvc_camera_in_motion",
+      "moduleId": "trsvc",
+      "name": "Camera While Moving",
+      "description": "Keeps the camera image on screen above walking pace.",
+      "longDescription": "Factory default hides the camera above ~20 km/h. Enabling this is for low-speed manoeuvring only \u2014 do not watch the screen while driving.",
+      "valueType": "boolean",
+      "defaultValue": "false",
+      "safeDefault": "false",
+      "demoValue": "false",
+      "f10Applicable": true,
+      "ecuMap": {
+        "dataIdentifier": 12416,
+        "byteOffset": 2,
+        "bitMask": 1,
+        "encodedValues": {
+          "true": "0x01",
+          "false": "0x00"
+        },
+        "verified": false
+      },
+      "warning": "Keep your eyes on the road. Camera-in-motion is for parking-speed use only."
+    },
+    {
+      "id": "egs_sport_display",
+      "moduleId": "egs",
+      "name": "Sport Shift Display",
+      "description": "Shows a sportier gear and shift-point display in the cluster.",
+      "longDescription": "Does not change shift maps by itself. Pair with driving-mode coding in ICM if you want Sport as the default.",
+      "valueType": "boolean",
+      "defaultValue": "false",
+      "safeDefault": "false",
+      "demoValue": "true",
+      "f10Applicable": true,
+      "ecuMap": {
+        "dataIdentifier": 12432,
+        "byteOffset": 0,
+        "bitMask": 1,
+        "encodedValues": {
+          "true": "0x01",
+          "false": "0x00"
+        },
+        "verified": false
+      }
+    },
+    {
+      "id": "egs_shift_style",
+      "moduleId": "egs",
+      "name": "Default Shift Character",
+      "description": "Shift character used when you start the car.",
+      "longDescription": "Comfort is the factory default. Sport holds gears longer. This is a comfort coding, not a flash of transmission software.",
+      "valueType": "enum",
+      "options": [
+        {
+          "label": "Comfort",
+          "value": "comfort"
+        },
+        {
+          "label": "Sport",
+          "value": "sport"
+        },
+        {
+          "label": "Sport+",
+          "value": "sport_plus"
+        }
+      ],
+      "defaultValue": "comfort",
+      "safeDefault": "comfort",
+      "demoValue": "sport",
+      "f10Applicable": true,
+      "ecuMap": {
+        "dataIdentifier": 12432,
+        "byteOffset": 1,
+        "bitMask": 255,
+        "encodedValues": {
+          "comfort": "0x00",
+          "sport": "0x01",
+          "sport_plus": "0x02"
+        },
+        "verified": false
+      }
+    },
+    {
+      "id": "frm_cornering_lights",
+      "moduleId": "frm",
+      "name": "Cornering Lights",
+      "description": "Uses the front fog lights as cornering lights when turning at low speed.",
+      "longDescription": "When enabled, the front fog light on the side you are turning toward will activate as a supplemental cornering light whenever you make a slow turn (under 40 km/h). The fog lights must be physically installed for this feature to work.",
+      "valueType": "boolean",
+      "defaultValue": "false",
+      "safeDefault": "false",
+      "demoValue": "true",
+      "f10Applicable": true,
+      "ecuMap": {
+        "dataIdentifier": 12288,
+        "byteOffset": 0,
+        "bitMask": 1,
+        "encodedValues": {
+          "true": "0x01",
+          "false": "0x00"
+        },
+        "verified": false
+      }
     },
     {
       "id": "frm_drl_brightness",
       "moduleId": "frm",
       "name": "DRL Brightness",
       "description": "Sets the daytime running light brightness as a percentage of maximum output.",
-      "longDescription": "Controls how bright the daytime running lights (DRLs) appear during daylight driving. The factory default is 70%, but many owners prefer 100% for maximum visibility on motorways, or a lower value like 50% for a subtler, less aggressive look. Changes take effect after the next engine start. Values below 30% may not meet legal DRL requirements in some countries.",
+      "longDescription": "Controls how bright the daytime running lights (DRLs) appear during daylight driving. The factory default is 70%. Values below 30% may not meet legal DRL requirements in some countries.",
       "valueType": "integer",
       "min": 30,
       "max": 100,
-      "unit": "%",
       "defaultValue": "70",
       "safeDefault": "70",
       "demoValue": "85",
       "f10Applicable": true,
-      "ecuMap": { "dataIdentifier": 12288, "byteOffset": 1, "bitMask": 255, "scale": 1.0, "verified": false }
+      "ecuMap": {
+        "dataIdentifier": 12288,
+        "byteOffset": 1,
+        "bitMask": 255,
+        "scale": 1.0,
+        "verified": false
+      },
+      "unit": "%"
     },
     {
       "id": "frm_welcome_lights",
       "moduleId": "frm",
       "name": "Welcome Lights Duration",
       "description": "How many seconds the exterior lights illuminate when you remotely unlock the car.",
-      "longDescription": "When you press unlock on the key fob, the exterior lights turn on to guide you to the car in the dark. This setting controls how long that welcome sequence lasts. Set to 0 to disable the welcome sequence entirely if you find it unnecessary or annoying in urban environments where street lighting is sufficient.",
+      "longDescription": "When you press unlock on the key fob, the exterior lights turn on to guide you to the car. Set to 0 to disable.",
       "valueType": "integer",
       "min": 0,
       "max": 60,
-      "unit": "seconds",
       "defaultValue": "30",
       "safeDefault": "30",
       "demoValue": "45",
       "f10Applicable": true,
-      "ecuMap": { "dataIdentifier": 12288, "byteOffset": 2, "bitMask": 255, "scale": 1.0, "verified": false }
+      "ecuMap": {
+        "dataIdentifier": 12288,
+        "byteOffset": 2,
+        "bitMask": 255,
+        "scale": 1.0,
+        "verified": false
+      },
+      "unit": "seconds"
     },
     {
       "id": "frm_ambient_color",
       "moduleId": "frm",
       "name": "Ambient Lighting Color",
       "description": "Sets the color of the interior ambient lighting strips in the door panels and footwells.",
-      "longDescription": "The F10 5 Series has ambient LED strips in the door panels and footwells. This coding selects the base color profile. The 'Ice Blue' option matches BMW's factory tone. Actual color rendering depends on the LED hardware installed — cars with single-color strips will show all options as the same color. RGB ambient lighting retrofits can use any of these profiles.",
+      "longDescription": "The F10 has ambient LED strips in the door panels and footwells. RGB retrofits can use any profile; single-colour strips ignore the colour choice.",
       "valueType": "enum",
       "options": [
-        { "label": "Ice Blue (BMW Default)", "value": "ice_blue" },
-        { "label": "Warm White", "value": "warm_white" },
-        { "label": "Cool White", "value": "cool_white" },
-        { "label": "Red", "value": "red" },
-        { "label": "Green", "value": "green" },
-        { "label": "Orange", "value": "orange" }
+        {
+          "label": "Ice Blue (BMW Default)",
+          "value": "ice_blue"
+        },
+        {
+          "label": "Warm White",
+          "value": "warm_white"
+        },
+        {
+          "label": "Cool White",
+          "value": "cool_white"
+        },
+        {
+          "label": "Red",
+          "value": "red"
+        },
+        {
+          "label": "Green",
+          "value": "green"
+        },
+        {
+          "label": "Orange",
+          "value": "orange"
+        }
       ],
       "defaultValue": "ice_blue",
       "safeDefault": "ice_blue",
       "demoValue": "ice_blue",
       "f10Applicable": true,
-      "ecuMap": { "dataIdentifier": 12288, "byteOffset": 3, "bitMask": 255, "encodedValues": { "ice_blue": "0x00", "warm_white": "0x01", "cool_white": "0x02", "red": "0x03", "green": "0x04", "orange": "0x05" }, "verified": false }
+      "ecuMap": {
+        "dataIdentifier": 12288,
+        "byteOffset": 3,
+        "bitMask": 255,
+        "encodedValues": {
+          "ice_blue": "0x00",
+          "warm_white": "0x01",
+          "cool_white": "0x02",
+          "red": "0x03",
+          "green": "0x04",
+          "orange": "0x05"
+        },
+        "verified": false
+      }
     },
     {
       "id": "frm_farewell_animation",
       "moduleId": "frm",
       "name": "Farewell Animation",
       "description": "Plays a light fade-out sequence after you lock the car and walk away.",
-      "longDescription": "After locking the car, the exterior lights play a brief 3-second fade-out animation rather than switching off instantly. This gives the car a premium feel and provides a visual confirmation that locking was successful. Disable this if you park in environments where a brief light flash might be unwanted.",
+      "longDescription": "After locking, the exterior lights play a brief fade-out rather than switching off instantly.",
       "valueType": "boolean",
       "defaultValue": "true",
       "safeDefault": "true",
       "demoValue": "true",
       "f10Applicable": true,
-      "ecuMap": { "dataIdentifier": 12288, "byteOffset": 4, "bitMask": 1, "encodedValues": { "true": "0x01", "false": "0x00" }, "verified": false }
+      "ecuMap": {
+        "dataIdentifier": 12288,
+        "byteOffset": 4,
+        "bitMask": 1,
+        "encodedValues": {
+          "true": "0x01",
+          "false": "0x00"
+        },
+        "verified": false
+      }
     },
     {
       "id": "frm_single_door_unlock",
       "moduleId": "frm",
       "name": "Driver-Only First Unlock",
       "description": "First key fob press unlocks only the driver door; a second press unlocks all doors.",
-      "longDescription": "By default, one press on the unlock button opens all four doors at once. With this coding enabled, the first press unlocks only the driver door. A second press within a few seconds unlocks the remaining doors. This is a security preference — it prevents passengers or strangers from opening the car while you are still approaching it in a crowded area.",
+      "longDescription": "By default one press opens all four doors. With this coding the first press unlocks only the driver door.",
       "valueType": "boolean",
       "defaultValue": "false",
       "safeDefault": "false",
       "demoValue": "false",
       "f10Applicable": true,
-      "ecuMap": { "dataIdentifier": 12288, "byteOffset": 5, "bitMask": 1, "encodedValues": { "true": "0x01", "false": "0x00" }, "verified": false }
+      "ecuMap": {
+        "dataIdentifier": 12288,
+        "byteOffset": 5,
+        "bitMask": 1,
+        "encodedValues": {
+          "true": "0x01",
+          "false": "0x00"
+        },
+        "verified": false
+      }
+    },
+    {
+      "id": "frm_drl_on",
+      "moduleId": "frm",
+      "name": "Daytime Running Lights",
+      "description": "Turns daytime running lights on or off.",
+      "longDescription": "Legal in many countries. Switching DRLs off may be illegal on public roads.",
+      "valueType": "boolean",
+      "defaultValue": "true",
+      "safeDefault": "true",
+      "demoValue": "true",
+      "f10Applicable": true,
+      "ecuMap": {
+        "dataIdentifier": 12288,
+        "byteOffset": 6,
+        "bitMask": 1,
+        "encodedValues": {
+          "true": "0x01",
+          "false": "0x00"
+        },
+        "verified": false
+      }
+    },
+    {
+      "id": "frm_comfort_blinks",
+      "moduleId": "frm",
+      "name": "Comfort Turn-Signal Blinks",
+      "description": "Number of flashes from a tap of the stalk (comfort indicator).",
+      "longDescription": "Factory is typically 3. 5 is a common choice so a lane change is more visible.",
+      "valueType": "integer",
+      "min": 1,
+      "max": 5,
+      "defaultValue": "3",
+      "safeDefault": "3",
+      "demoValue": "5",
+      "f10Applicable": true,
+      "ecuMap": {
+        "dataIdentifier": 12288,
+        "byteOffset": 7,
+        "bitMask": 255,
+        "scale": 1.0,
+        "verified": false
+      },
+      "unit": "blinks"
+    },
+    {
+      "id": "frm_mirror_fold",
+      "moduleId": "frm",
+      "name": "Fold Mirrors on Lock",
+      "description": "Power-folds the door mirrors when you lock the car.",
+      "longDescription": "The mirror motors must be present (common on F10 with folding-mirror option). Unfolds on unlock.",
+      "valueType": "boolean",
+      "defaultValue": "false",
+      "safeDefault": "false",
+      "demoValue": "true",
+      "f10Applicable": true,
+      "ecuMap": {
+        "dataIdentifier": 12288,
+        "byteOffset": 8,
+        "bitMask": 1,
+        "encodedValues": {
+          "true": "0x01",
+          "false": "0x00"
+        },
+        "verified": false
+      }
+    },
+    {
+      "id": "frm_mirror_tilt",
+      "moduleId": "frm",
+      "name": "Tilt Passenger Mirror in Reverse",
+      "description": "Dips the passenger mirror toward the kerb when you select reverse.",
+      "longDescription": "Helps you see the kerb when parking. Memory seats/mirrors make the tilt smoother.",
+      "valueType": "boolean",
+      "defaultValue": "false",
+      "safeDefault": "false",
+      "demoValue": "true",
+      "f10Applicable": true,
+      "ecuMap": {
+        "dataIdentifier": 12288,
+        "byteOffset": 9,
+        "bitMask": 1,
+        "encodedValues": {
+          "true": "0x01",
+          "false": "0x00"
+        },
+        "verified": false
+      }
+    },
+    {
+      "id": "frm_angel_eyes",
+      "moduleId": "frm",
+      "name": "Angel-Eye / DRL Mode",
+      "description": "Keeps the angel-eye rings on as daytime running lights.",
+      "longDescription": "Depends on headlamp hardware (halogen vs xenon). Does not convert halogen rings into LED.",
+      "valueType": "boolean",
+      "defaultValue": "true",
+      "safeDefault": "true",
+      "demoValue": "true",
+      "f10Applicable": true,
+      "ecuMap": {
+        "dataIdentifier": 12288,
+        "byteOffset": 10,
+        "bitMask": 1,
+        "encodedValues": {
+          "true": "0x01",
+          "false": "0x00"
+        },
+        "verified": false
+      }
+    },
+    {
+      "id": "hu_video_in_motion",
+      "moduleId": "hu",
+      "name": "Video in Motion",
+      "description": "Removes the lock that prevents video playback on the iDrive screen while driving.",
+      "longDescription": "Factory default blocks video whenever the car is in motion. Intended for rear-seat passengers only. Illegal for the driver in most places.",
+      "valueType": "boolean",
+      "defaultValue": "false",
+      "safeDefault": "false",
+      "demoValue": "false",
+      "f10Applicable": true,
+      "ecuMap": {
+        "dataIdentifier": 12320,
+        "byteOffset": 0,
+        "bitMask": 1,
+        "encodedValues": {
+          "true": "0x01",
+          "false": "0x00"
+        },
+        "verified": false
+      },
+      "warning": "This disables BMW's safety restriction on in-motion video. Intended for rear passengers only. The driver watching video while driving is illegal in most jurisdictions."
+    },
+    {
+      "id": "hu_speed_limit",
+      "moduleId": "hu",
+      "name": "Speed Limit Display",
+      "description": "Shows the current road's posted speed limit in the instrument cluster and/or HUD.",
+      "longDescription": "Reads speed-limit data from the navigation map. Accuracy depends on map data being current.",
+      "valueType": "boolean",
+      "defaultValue": "true",
+      "safeDefault": "true",
+      "demoValue": "true",
+      "f10Applicable": true,
+      "ecuMap": {
+        "dataIdentifier": 12320,
+        "byteOffset": 1,
+        "bitMask": 1,
+        "encodedValues": {
+          "true": "0x01",
+          "false": "0x00"
+        },
+        "verified": false
+      }
+    },
+    {
+      "id": "hu_ambient_menu",
+      "moduleId": "hu",
+      "name": "Ambient Lighting iDrive Menu",
+      "description": "Reveals the ambient lighting control submenu in the iDrive Settings.",
+      "longDescription": "Adds an Ambient Lighting page so you can change brightness/colour from iDrive instead of recoding.",
+      "valueType": "boolean",
+      "defaultValue": "false",
+      "safeDefault": "false",
+      "demoValue": "true",
+      "f10Applicable": true,
+      "ecuMap": {
+        "dataIdentifier": 12320,
+        "byteOffset": 2,
+        "bitMask": 1,
+        "encodedValues": {
+          "true": "0x01",
+          "false": "0x00"
+        },
+        "verified": false
+      }
+    },
+    {
+      "id": "hu_sport_display",
+      "moduleId": "hu",
+      "name": "Sport Display",
+      "description": "Adds a performance monitoring page to iDrive showing g-force, throttle, brake, and gear data.",
+      "longDescription": "Unlocks the Sport Display page. Data comes from DSC and DME \u2014 no extra hardware.",
+      "valueType": "boolean",
+      "defaultValue": "false",
+      "safeDefault": "false",
+      "demoValue": "false",
+      "f10Applicable": true,
+      "ecuMap": {
+        "dataIdentifier": 12320,
+        "byteOffset": 3,
+        "bitMask": 1,
+        "encodedValues": {
+          "true": "0x01",
+          "false": "0x00"
+        },
+        "verified": false
+      }
+    },
+    {
+      "id": "hu_screen_off_timer",
+      "moduleId": "hu",
+      "name": "Screen Auto-Off Timer",
+      "description": "Minutes of inactivity before the iDrive screen automatically dims to black.",
+      "longDescription": "Set to 0 to never auto-off.",
+      "valueType": "integer",
+      "min": 0,
+      "max": 60,
+      "defaultValue": "10",
+      "safeDefault": "10",
+      "demoValue": "10",
+      "f10Applicable": true,
+      "ecuMap": {
+        "dataIdentifier": 12320,
+        "byteOffset": 4,
+        "bitMask": 255,
+        "scale": 1.0,
+        "verified": false
+      },
+      "unit": "min"
+    },
+    {
+      "id": "hu_video_menu",
+      "moduleId": "hu",
+      "name": "Video Menu",
+      "description": "Shows the Video source page in iDrive (DVD / AUX video).",
+      "longDescription": "Useful after a media retrofit. Does nothing if no video source is installed.",
+      "valueType": "boolean",
+      "defaultValue": "false",
+      "safeDefault": "false",
+      "demoValue": "true",
+      "f10Applicable": true,
+      "ecuMap": {
+        "dataIdentifier": 12320,
+        "byteOffset": 5,
+        "bitMask": 1,
+        "encodedValues": {
+          "true": "0x01",
+          "false": "0x00"
+        },
+        "verified": false
+      }
     },
     {
       "id": "kombi_gauge_sweep",
       "moduleId": "kombi",
       "name": "Startup Gauge Sweep",
       "description": "Sweeps all instrument cluster needles to maximum and back when you start the engine.",
-      "longDescription": "When you turn on the ignition, all analog needles (speedometer, tachometer, fuel, temperature) sweep dramatically to their maximum positions and return to zero before settling on their real readings. This is called 'needle staging' and is purely cosmetic. The animation lasts about 2 seconds. It can be disabled if you prefer a more functional, no-frills startup.",
+      "longDescription": "Needle staging is cosmetic and lasts about two seconds.",
       "valueType": "boolean",
       "defaultValue": "true",
       "safeDefault": "true",
       "demoValue": "true",
       "f10Applicable": true,
-      "ecuMap": { "dataIdentifier": 12304, "byteOffset": 0, "bitMask": 1, "encodedValues": { "true": "0x01", "false": "0x00" }, "verified": false }
+      "ecuMap": {
+        "dataIdentifier": 12304,
+        "byteOffset": 0,
+        "bitMask": 1,
+        "encodedValues": {
+          "true": "0x01",
+          "false": "0x00"
+        },
+        "verified": false
+      }
     },
     {
       "id": "kombi_digital_speedo",
       "moduleId": "kombi",
       "name": "Digital Speedometer",
       "description": "Shows your exact current speed as a large number in the cluster info display.",
-      "longDescription": "Activates a digital speedometer in the central information area of the instrument cluster, showing your speed as a precise number. This supplements the analog needle — it does not replace it. Useful for accurate speed awareness on motorways or in areas with strict speed cameras, where knowing your precise speed to within 1 km/h matters.",
+      "longDescription": "Supplements the analog needle \u2014 it does not replace it.",
       "valueType": "boolean",
       "defaultValue": "false",
       "safeDefault": "false",
       "demoValue": "true",
       "f10Applicable": true,
-      "ecuMap": { "dataIdentifier": 12304, "byteOffset": 1, "bitMask": 1, "encodedValues": { "true": "0x01", "false": "0x00" }, "verified": false }
+      "ecuMap": {
+        "dataIdentifier": 12304,
+        "byteOffset": 1,
+        "bitMask": 1,
+        "encodedValues": {
+          "true": "0x01",
+          "false": "0x00"
+        },
+        "verified": false
+      }
     },
     {
       "id": "kombi_oil_temp",
       "moduleId": "kombi",
       "name": "Oil Temperature Gauge",
       "description": "Activates the blank gauge slot as a live oil temperature readout.",
-      "longDescription": "The F10 has a gauge housing in the instrument cluster that is left blank on many trim levels from the factory. This coding repurposes it as an oil temperature gauge using data directly from the engine management system. Knowing oil temperature is important if you enjoy spirited driving — you should ideally wait until the oil reaches 80°C before driving hard.",
+      "longDescription": "Uses oil temperature from DME. Wait for ~80 \u00b0C before hard driving.",
       "valueType": "boolean",
       "defaultValue": "false",
       "safeDefault": "false",
       "demoValue": "true",
       "f10Applicable": true,
-      "ecuMap": { "dataIdentifier": 12304, "byteOffset": 2, "bitMask": 1, "encodedValues": { "true": "0x01", "false": "0x00" }, "verified": false }
+      "ecuMap": {
+        "dataIdentifier": 12304,
+        "byteOffset": 2,
+        "bitMask": 1,
+        "encodedValues": {
+          "true": "0x01",
+          "false": "0x00"
+        },
+        "verified": false
+      }
     },
     {
       "id": "kombi_speedo_unit",
       "moduleId": "kombi",
       "name": "Speedometer Unit",
       "description": "Switches all speed displays in the cluster between km/h and mph.",
-      "longDescription": "Changes the primary unit shown on the analog speedometer dial and all digital speed displays in the cluster. If you have imported a car from a country with different speed conventions, or have relocated, this coding lets you switch units without any hardware changes. The change also affects the cruise control speed display and, if equipped, the Head-Up Display.",
+      "longDescription": "Also affects cruise-control speed display and, if equipped, the HUD.",
       "valueType": "enum",
       "options": [
-        { "label": "km/h", "value": "kmh" },
-        { "label": "mph", "value": "mph" }
+        {
+          "label": "km/h",
+          "value": "kmh"
+        },
+        {
+          "label": "mph",
+          "value": "mph"
+        }
       ],
       "defaultValue": "kmh",
       "safeDefault": "kmh",
       "demoValue": "kmh",
       "f10Applicable": true,
-      "ecuMap": { "dataIdentifier": 12304, "byteOffset": 3, "bitMask": 255, "encodedValues": { "kmh": "0x00", "mph": "0x01" }, "verified": false }
+      "ecuMap": {
+        "dataIdentifier": 12304,
+        "byteOffset": 3,
+        "bitMask": 255,
+        "encodedValues": {
+          "kmh": "0x00",
+          "mph": "0x01"
+        },
+        "verified": false
+      }
     },
     {
       "id": "kombi_lap_timer",
       "moduleId": "kombi",
       "name": "Lap Timer",
       "description": "Unlocks a lap timer function in the cluster accessible via the steering wheel buttons.",
-      "longDescription": "Activates a lap timer that can be started and stopped using the multifunction steering wheel buttons. Elapsed time and sector information are displayed in the cluster info area. This feature is normally restricted to M Performance models, but can be unlocked on standard F10s through coding. It has no effect on vehicle performance or safety systems.",
+      "longDescription": "Normally restricted to M Performance models. Cosmetic only.",
       "valueType": "boolean",
       "defaultValue": "false",
       "safeDefault": "false",
       "demoValue": "false",
       "f10Applicable": true,
-      "ecuMap": { "dataIdentifier": 12304, "byteOffset": 4, "bitMask": 1, "encodedValues": { "true": "0x01", "false": "0x00" }, "verified": false }
+      "ecuMap": {
+        "dataIdentifier": 12304,
+        "byteOffset": 4,
+        "bitMask": 1,
+        "encodedValues": {
+          "true": "0x01",
+          "false": "0x00"
+        },
+        "verified": false
+      }
     },
     {
       "id": "kombi_startup_gong",
       "moduleId": "kombi",
       "name": "Startup Chime",
       "description": "Plays the BMW welcome chime through the audio system when the ignition is turned on.",
-      "longDescription": "Enables the classic BMW welcome gong that plays through the vehicle's audio system immediately after you start the car. This is a premium touch that some configurations ship without, particularly after stereo retrofits. If you find the sound intrusive when starting the car in quiet places (early mornings, car parks), you can disable it here.",
+      "longDescription": "Disable if the gong is intrusive in quiet places.",
       "valueType": "boolean",
       "defaultValue": "true",
       "safeDefault": "true",
       "demoValue": "true",
       "f10Applicable": true,
-      "ecuMap": { "dataIdentifier": 12304, "byteOffset": 5, "bitMask": 1, "encodedValues": { "true": "0x01", "false": "0x00" }, "verified": false }
+      "ecuMap": {
+        "dataIdentifier": 12304,
+        "byteOffset": 5,
+        "bitMask": 1,
+        "encodedValues": {
+          "true": "0x01",
+          "false": "0x00"
+        },
+        "verified": false
+      }
     },
     {
-      "id": "nbt_video_in_motion",
-      "moduleId": "nbt",
-      "name": "Video in Motion",
-      "description": "Removes the lock that prevents video playback on the iDrive screen while driving.",
-      "longDescription": "By factory default, the iDrive system blocks all video playback (DVD, digital TV, mirrored content) whenever the car is in motion. Enabling this coding removes that restriction. This feature is intended for rear-seat passengers only. It is illegal and dangerous for the driver to watch video while operating a vehicle. Only enable this if you have passengers who wish to use the screen on long journeys.",
-      "valueType": "boolean",
-      "defaultValue": "false",
-      "safeDefault": "false",
-      "demoValue": "false",
-      "warning": "This disables BMW's safety restriction on in-motion video. Intended for rear passengers only. The driver watching video while driving is illegal in most jurisdictions.",
-      "f10Applicable": true,
-      "ecuMap": { "dataIdentifier": 12320, "byteOffset": 0, "bitMask": 1, "encodedValues": { "true": "0x01", "false": "0x00" }, "verified": false }
-    },
-    {
-      "id": "nbt_speed_limit",
-      "moduleId": "nbt",
-      "name": "Speed Limit Display",
-      "description": "Shows the current road's posted speed limit in the instrument cluster and/or HUD.",
-      "longDescription": "When active, the navigation system reads speed limit data from its map database and displays the posted limit directly in the instrument cluster or Head-Up Display. This is a passive awareness tool — it does not intervene in vehicle operation. Accuracy depends on map data being current; limits may lag in construction zones or recently changed roads.",
+      "id": "kombi_fuel_reserve_warning",
+      "moduleId": "kombi",
+      "name": "Fuel Reserve Warning",
+      "description": "Shows a more prominent low-fuel warning in the cluster.",
+      "longDescription": "Does not change the actual reserve quantity, only how insistently it is announced.",
       "valueType": "boolean",
       "defaultValue": "true",
       "safeDefault": "true",
       "demoValue": "true",
       "f10Applicable": true,
-      "ecuMap": { "dataIdentifier": 12320, "byteOffset": 1, "bitMask": 1, "encodedValues": { "true": "0x01", "false": "0x00" }, "verified": false }
+      "ecuMap": {
+        "dataIdentifier": 12304,
+        "byteOffset": 6,
+        "bitMask": 1,
+        "encodedValues": {
+          "true": "0x01",
+          "false": "0x00"
+        },
+        "verified": false
+      }
     },
     {
-      "id": "nbt_ambient_menu",
-      "moduleId": "nbt",
-      "name": "Ambient Lighting iDrive Menu",
-      "description": "Reveals the ambient lighting control submenu in the iDrive Settings.",
-      "longDescription": "Adds an 'Ambient Lighting' submenu to the iDrive Settings pages, allowing brightness and color adjustments directly from the touchscreen. Without this coding, the menu may be hidden even on cars that have ambient lighting hardware installed. Once revealed, you no longer need a coding tool to change the ambient lighting level day-to-day.",
+      "id": "kombi_driving_mode_display",
+      "moduleId": "kombi",
+      "name": "Driving Mode Display",
+      "description": "How the current driving mode is shown in the cluster.",
+      "longDescription": "Useful if you code ICM default mode and want the cluster to match.",
+      "valueType": "enum",
+      "options": [
+        {
+          "label": "Hidden",
+          "value": "hidden"
+        },
+        {
+          "label": "Icon",
+          "value": "icon"
+        },
+        {
+          "label": "Icon + name",
+          "value": "full"
+        }
+      ],
+      "defaultValue": "icon",
+      "safeDefault": "icon",
+      "demoValue": "full",
+      "f10Applicable": true,
+      "ecuMap": {
+        "dataIdentifier": 12304,
+        "byteOffset": 7,
+        "bitMask": 255,
+        "encodedValues": {
+          "hidden": "0x00",
+          "icon": "0x01",
+          "full": "0x02"
+        },
+        "verified": false
+      }
+    },
+    {
+      "id": "icm_acc_default_on",
+      "moduleId": "icm",
+      "name": "Active Cruise Control Default",
+      "description": "Makes Active Cruise Control the default when you press the cruise stalk.",
+      "longDescription": "Without ACC hardware this does nothing. With ACC fitted, the stalk starts ACC instead of plain cruise.",
       "valueType": "boolean",
       "defaultValue": "false",
       "safeDefault": "false",
       "demoValue": "true",
       "f10Applicable": true,
-      "ecuMap": { "dataIdentifier": 12320, "byteOffset": 2, "bitMask": 1, "encodedValues": { "true": "0x01", "false": "0x00" }, "verified": false }
+      "ecuMap": {
+        "dataIdentifier": 12448,
+        "byteOffset": 0,
+        "bitMask": 1,
+        "encodedValues": {
+          "true": "0x01",
+          "false": "0x00"
+        },
+        "verified": false
+      }
     },
     {
-      "id": "nbt_sport_display",
-      "moduleId": "nbt",
-      "name": "Sport Display",
-      "description": "Adds a performance monitoring page to iDrive showing g-force, throttle, brake, and gear data.",
-      "longDescription": "Unlocks an additional iDrive page called 'Sport Display' showing real-time lateral and longitudinal g-force, throttle pedal position, brake pressure, and current gear. Data is sourced from the DSC (stability control) module and engine ECU — no additional hardware is required. This is a popular addition for track day preparation or simply for showing off.",
+      "id": "icm_driving_mode",
+      "moduleId": "icm",
+      "name": "Default Driving Mode",
+      "description": "Driving mode restored at every start (Comfort / Sport / Sport+).",
+      "longDescription": "Does not add hardware. Sport+ may be greyed out on cars without the sport chassis.",
+      "valueType": "enum",
+      "options": [
+        {
+          "label": "Comfort",
+          "value": "comfort"
+        },
+        {
+          "label": "Sport",
+          "value": "sport"
+        },
+        {
+          "label": "Sport+",
+          "value": "sport_plus"
+        }
+      ],
+      "defaultValue": "comfort",
+      "safeDefault": "comfort",
+      "demoValue": "sport",
+      "f10Applicable": true,
+      "ecuMap": {
+        "dataIdentifier": 12448,
+        "byteOffset": 1,
+        "bitMask": 255,
+        "encodedValues": {
+          "comfort": "0x00",
+          "sport": "0x01",
+          "sport_plus": "0x02"
+        },
+        "verified": false
+      }
+    },
+    {
+      "id": "icm_dtc_memory",
+      "moduleId": "icm",
+      "name": "Remember DTC Button",
+      "description": "Keeps Dynamic Traction Control engaged across ignition cycles.",
+      "longDescription": "Factory DTC (traction off) resets at every start. Enable this to remember the last state.",
       "valueType": "boolean",
       "defaultValue": "false",
       "safeDefault": "false",
       "demoValue": "false",
       "f10Applicable": true,
-      "ecuMap": { "dataIdentifier": 12320, "byteOffset": 3, "bitMask": 1, "encodedValues": { "true": "0x01", "false": "0x00" }, "verified": false }
+      "ecuMap": {
+        "dataIdentifier": 12448,
+        "byteOffset": 2,
+        "bitMask": 1,
+        "encodedValues": {
+          "true": "0x01",
+          "false": "0x00"
+        },
+        "verified": false
+      }
     },
     {
-      "id": "nbt_screen_off_timer",
-      "moduleId": "nbt",
-      "name": "Screen Auto-Off Timer",
-      "description": "Minutes of inactivity before the iDrive screen automatically dims to black.",
-      "longDescription": "Sets how many minutes of complete iDrive inactivity (no touch input, no knob input, no incoming call or notification) must pass before the screen automatically turns off. Set to 0 to never auto-off. Reducing screen-on time can help prolong the display's backlight life over years of ownership and reduces light distraction on motorway cruises.",
+      "id": "jbbf_pdc_auto",
+      "moduleId": "jbbf",
+      "name": "PDC Auto-On in Reverse",
+      "description": "Park Distance Control starts automatically when you select reverse.",
+      "longDescription": "F10 has no REM; PDC and rear power distribution live in the junction box (JBBF).",
+      "valueType": "boolean",
+      "defaultValue": "true",
+      "safeDefault": "true",
+      "demoValue": "true",
+      "f10Applicable": true,
+      "ecuMap": {
+        "dataIdentifier": 12464,
+        "byteOffset": 0,
+        "bitMask": 1,
+        "encodedValues": {
+          "true": "0x01",
+          "false": "0x00"
+        },
+        "verified": false
+      }
+    },
+    {
+      "id": "jbbf_rear_fog",
+      "moduleId": "jbbf",
+      "name": "Rear Fog Light Legalisation",
+      "description": "Enables the rear fog output if the lamp is fitted.",
+      "longDescription": "Only code this if the rear fog lamp is physically installed and legal in your country.",
+      "valueType": "boolean",
+      "defaultValue": "false",
+      "safeDefault": "false",
+      "demoValue": "false",
+      "f10Applicable": true,
+      "ecuMap": {
+        "dataIdentifier": 12464,
+        "byteOffset": 1,
+        "bitMask": 1,
+        "encodedValues": {
+          "true": "0x01",
+          "false": "0x00"
+        },
+        "verified": false
+      }
+    },
+    {
+      "id": "jbbf_rvc_enable",
+      "moduleId": "jbbf",
+      "name": "Rear View Camera Enable",
+      "description": "Tells the junction box a rear camera is installed so reverse shows the picture.",
+      "longDescription": "The camera and head-unit input must exist. Pair with TRSVC guidelines if you have Surround View.",
+      "valueType": "boolean",
+      "defaultValue": "false",
+      "safeDefault": "false",
+      "demoValue": "true",
+      "f10Applicable": true,
+      "ecuMap": {
+        "dataIdentifier": 12464,
+        "byteOffset": 2,
+        "bitMask": 1,
+        "encodedValues": {
+          "true": "0x01",
+          "false": "0x00"
+        },
+        "verified": false
+      }
+    },
+    {
+      "id": "jbbf_window_comfort",
+      "moduleId": "jbbf",
+      "name": "Comfort Window Close",
+      "description": "Hold lock on the fob to close windows from the junction-box window module.",
+      "longDescription": "Same idea as CAS remote windows; JBBF actually drives the motors on F10.",
+      "valueType": "boolean",
+      "defaultValue": "false",
+      "safeDefault": "false",
+      "demoValue": "true",
+      "f10Applicable": true,
+      "ecuMap": {
+        "dataIdentifier": 12464,
+        "byteOffset": 3,
+        "bitMask": 1,
+        "encodedValues": {
+          "true": "0x01",
+          "false": "0x00"
+        },
+        "verified": false
+      }
+    },
+    {
+      "id": "fzd_acoustic_confirm",
+      "moduleId": "fzd",
+      "name": "Acoustical Confirmation",
+      "description": "Chirp / beep from the alarm siren when locking and unlocking.",
+      "longDescription": "Roof Function Centre owns the siren. Pair with CAS horn-on-lock if you want both.",
+      "valueType": "boolean",
+      "defaultValue": "false",
+      "safeDefault": "false",
+      "demoValue": "true",
+      "f10Applicable": true,
+      "ecuMap": {
+        "dataIdentifier": 12480,
+        "byteOffset": 0,
+        "bitMask": 1,
+        "encodedValues": {
+          "true": "0x01",
+          "false": "0x00"
+        },
+        "verified": false
+      }
+    },
+    {
+      "id": "fzd_alarm",
+      "moduleId": "fzd",
+      "name": "Alarm System",
+      "description": "Enables the interior/tilt alarm if the siren and sensors are fitted.",
+      "longDescription": "Coding this on a car without DWA hardware will not add an alarm.",
+      "valueType": "boolean",
+      "defaultValue": "true",
+      "safeDefault": "true",
+      "demoValue": "true",
+      "f10Applicable": true,
+      "ecuMap": {
+        "dataIdentifier": 12480,
+        "byteOffset": 1,
+        "bitMask": 1,
+        "encodedValues": {
+          "true": "0x01",
+          "false": "0x00"
+        },
+        "verified": false
+      }
+    },
+    {
+      "id": "fzd_interior_light_delay",
+      "moduleId": "fzd",
+      "name": "Interior Light Delay",
+      "description": "Seconds the dome light stays on after you close the doors.",
+      "longDescription": "Set to 0 for instant off.",
       "valueType": "integer",
       "min": 0,
       "max": 60,
-      "unit": "min",
-      "defaultValue": "10",
-      "safeDefault": "10",
-      "demoValue": "10",
+      "defaultValue": "20",
+      "safeDefault": "20",
+      "demoValue": "30",
       "f10Applicable": true,
-      "ecuMap": { "dataIdentifier": 12320, "byteOffset": 4, "bitMask": 255, "scale": 1.0, "verified": false }
+      "ecuMap": {
+        "dataIdentifier": 12480,
+        "byteOffset": 2,
+        "bitMask": 255,
+        "scale": 1.0,
+        "verified": false
+      },
+      "unit": "seconds"
+    },
+    {
+      "id": "fzd_panic_alarm",
+      "moduleId": "fzd",
+      "name": "Panic Alarm on Fob",
+      "description": "Hold the lock button to trigger the panic siren.",
+      "longDescription": "Useful as an emergency attention signal. Disable if accidental presses are a problem.",
+      "valueType": "boolean",
+      "defaultValue": "false",
+      "safeDefault": "false",
+      "demoValue": "false",
+      "f10Applicable": true,
+      "ecuMap": {
+        "dataIdentifier": 12480,
+        "byteOffset": 3,
+        "bitMask": 1,
+        "encodedValues": {
+          "true": "0x01",
+          "false": "0x00"
+        },
+        "verified": false
+      }
+    },
+    {
+      "id": "sm_seat_heat",
+      "moduleId": "sm_fa",
+      "name": "Seat Heating",
+      "description": "Enables driver seat heating stages if the elements are fitted.",
+      "longDescription": "Does not add heaters. If the switch does nothing, the hardware is missing.",
+      "valueType": "boolean",
+      "defaultValue": "true",
+      "safeDefault": "true",
+      "demoValue": "true",
+      "f10Applicable": true,
+      "ecuMap": {
+        "dataIdentifier": 12496,
+        "byteOffset": 0,
+        "bitMask": 1,
+        "encodedValues": {
+          "true": "0x01",
+          "false": "0x00"
+        },
+        "verified": false
+      }
+    },
+    {
+      "id": "sm_heat_memory",
+      "moduleId": "sm_fa",
+      "name": "Default Heat Stage",
+      "description": "Seat-heat stage restored at start (0 = off).",
+      "longDescription": "0\u20133 matching the switch positions.",
+      "valueType": "integer",
+      "min": 0,
+      "max": 3,
+      "defaultValue": "0",
+      "safeDefault": "0",
+      "demoValue": "1",
+      "f10Applicable": true,
+      "ecuMap": {
+        "dataIdentifier": 12496,
+        "byteOffset": 1,
+        "bitMask": 255,
+        "scale": 1.0,
+        "verified": false
+      }
+    },
+    {
+      "id": "sm_easy_entry",
+      "moduleId": "sm_fa",
+      "name": "Easy Entry",
+      "description": "Seat slides back when you switch off to make getting out easier.",
+      "longDescription": "Memory seats required. The seat moves to the saved position on the next start.",
+      "valueType": "boolean",
+      "defaultValue": "false",
+      "safeDefault": "false",
+      "demoValue": "true",
+      "f10Applicable": true,
+      "ecuMap": {
+        "dataIdentifier": 12496,
+        "byteOffset": 2,
+        "bitMask": 1,
+        "encodedValues": {
+          "true": "0x01",
+          "false": "0x00"
+        },
+        "verified": false
+      }
+    },
+    {
+      "id": "hkl_power_tailgate",
+      "moduleId": "hkl",
+      "name": "Power Tailgate",
+      "description": "Enables the electric tailgate if the lift motor is fitted.",
+      "longDescription": "2012 F10 5 Series often has a manual boot. Coding this without a motor does nothing.",
+      "valueType": "boolean",
+      "defaultValue": "false",
+      "safeDefault": "false",
+      "demoValue": "true",
+      "f10Applicable": true,
+      "ecuMap": {
+        "dataIdentifier": 12512,
+        "byteOffset": 0,
+        "bitMask": 1,
+        "encodedValues": {
+          "true": "0x01",
+          "false": "0x00"
+        },
+        "verified": false
+      }
+    },
+    {
+      "id": "hkl_opening_height",
+      "moduleId": "hkl",
+      "name": "Opening Height",
+      "description": "How far the power tailgate rises, as a percentage of full height.",
+      "longDescription": "Useful in low garages. 100 is fully open.",
+      "valueType": "integer",
+      "min": 50,
+      "max": 100,
+      "defaultValue": "100",
+      "safeDefault": "100",
+      "demoValue": "90",
+      "f10Applicable": true,
+      "ecuMap": {
+        "dataIdentifier": 12512,
+        "byteOffset": 1,
+        "bitMask": 255,
+        "scale": 1.0,
+        "verified": false
+      },
+      "unit": "%"
+    },
+    {
+      "id": "hkl_fob_open",
+      "moduleId": "hkl",
+      "name": "Open from Key Fob",
+      "description": "Hold the boot button on the key to open the power tailgate.",
+      "longDescription": "Requires power tailgate hardware.",
+      "valueType": "boolean",
+      "defaultValue": "true",
+      "safeDefault": "true",
+      "demoValue": "true",
+      "f10Applicable": true,
+      "ecuMap": {
+        "dataIdentifier": 12512,
+        "byteOffset": 2,
+        "bitMask": 1,
+        "encodedValues": {
+          "true": "0x01",
+          "false": "0x00"
+        },
+        "verified": false
+      }
+    },
+    {
+      "id": "pdc_volume",
+      "moduleId": "pdc",
+      "name": "PDC Volume",
+      "description": "Loudness of the parking-sensor beeps.",
+      "longDescription": "Independent of the iDrive volume knob on many F10s.",
+      "valueType": "integer",
+      "min": 10,
+      "max": 100,
+      "defaultValue": "70",
+      "safeDefault": "70",
+      "demoValue": "80",
+      "f10Applicable": true,
+      "ecuMap": {
+        "dataIdentifier": 12528,
+        "byteOffset": 0,
+        "bitMask": 255,
+        "scale": 1.0,
+        "verified": false
+      },
+      "unit": "%"
+    },
+    {
+      "id": "pdc_visual",
+      "moduleId": "pdc",
+      "name": "Visual PDC",
+      "description": "Shows the parking-sensor graphic on iDrive in addition to the beeps.",
+      "longDescription": "Needs a compatible head unit. Rear-view camera overlay is separate (TRSVC).",
+      "valueType": "boolean",
+      "defaultValue": "true",
+      "safeDefault": "true",
+      "demoValue": "true",
+      "f10Applicable": true,
+      "ecuMap": {
+        "dataIdentifier": 12528,
+        "byteOffset": 1,
+        "bitMask": 1,
+        "encodedValues": {
+          "true": "0x01",
+          "false": "0x00"
+        },
+        "verified": false
+      }
+    },
+    {
+      "id": "pdc_front",
+      "moduleId": "pdc",
+      "name": "Front Sensors",
+      "description": "Enables front parking sensors if they are fitted.",
+      "longDescription": "Rear-only cars should leave this off.",
+      "valueType": "boolean",
+      "defaultValue": "false",
+      "safeDefault": "false",
+      "demoValue": "true",
+      "f10Applicable": true,
+      "ecuMap": {
+        "dataIdentifier": 12528,
+        "byteOffset": 2,
+        "bitMask": 1,
+        "encodedValues": {
+          "true": "0x01",
+          "false": "0x00"
+        },
+        "verified": false
+      }
+    },
+    {
+      "id": "cas_auto_lock_speed",
+      "moduleId": "cas",
+      "name": "Auto Door Lock Speed",
+      "description": "All doors automatically lock when the car reaches this speed. Set to 0 to disable.",
+      "longDescription": "BMW factory default is typically 15 km/h.",
+      "valueType": "integer",
+      "min": 0,
+      "max": 80,
+      "defaultValue": "15",
+      "safeDefault": "15",
+      "demoValue": "15",
+      "f10Applicable": true,
+      "ecuMap": {
+        "dataIdentifier": 12352,
+        "byteOffset": 0,
+        "bitMask": 255,
+        "scale": 1.0,
+        "verified": false
+      },
+      "unit": "km/h"
+    },
+    {
+      "id": "cas_remote_window",
+      "moduleId": "cas",
+      "name": "Remote Window Operation",
+      "description": "Hold the lock or unlock button on the key fob to close or open all windows.",
+      "longDescription": "Hold lock ~3 seconds to close, unlock to vent. Car must be stationary.",
+      "valueType": "boolean",
+      "defaultValue": "false",
+      "safeDefault": "false",
+      "demoValue": "true",
+      "f10Applicable": true,
+      "ecuMap": {
+        "dataIdentifier": 12352,
+        "byteOffset": 1,
+        "bitMask": 1,
+        "encodedValues": {
+          "true": "0x01",
+          "false": "0x00"
+        },
+        "verified": false
+      }
+    },
+    {
+      "id": "cas_comfort_entry",
+      "moduleId": "cas",
+      "name": "Comfort Access Touch Unlock",
+      "description": "Unlock the car by touching the door handle while the key is in your pocket.",
+      "longDescription": "Comfort Access antennas must be installed. 2012 F10 often has this as an option.",
+      "valueType": "boolean",
+      "defaultValue": "true",
+      "safeDefault": "true",
+      "demoValue": "true",
+      "f10Applicable": true,
+      "ecuMap": {
+        "dataIdentifier": 12352,
+        "byteOffset": 2,
+        "bitMask": 1,
+        "encodedValues": {
+          "true": "0x01",
+          "false": "0x00"
+        },
+        "verified": false
+      }
+    },
+    {
+      "id": "cas_horn_on_lock",
+      "moduleId": "cas",
+      "name": "Horn Confirmation on Lock",
+      "description": "Beeps the horn once to confirm the car locked successfully.",
+      "longDescription": "Disable in quiet neighbourhoods. FZD acoustical confirmation is the siren alternative.",
+      "valueType": "boolean",
+      "defaultValue": "false",
+      "safeDefault": "false",
+      "demoValue": "false",
+      "f10Applicable": true,
+      "ecuMap": {
+        "dataIdentifier": 12352,
+        "byteOffset": 3,
+        "bitMask": 1,
+        "encodedValues": {
+          "true": "0x01",
+          "false": "0x00"
+        },
+        "verified": false
+      }
+    },
+    {
+      "id": "cas_auto_relock",
+      "moduleId": "cas",
+      "name": "Auto Re-Lock Timer",
+      "description": "If you unlock the car but do not open a door, it re-locks itself after this many seconds.",
+      "longDescription": "Set to 0 to disable.",
+      "valueType": "integer",
+      "min": 0,
+      "max": 120,
+      "defaultValue": "30",
+      "safeDefault": "30",
+      "demoValue": "30",
+      "f10Applicable": true,
+      "ecuMap": {
+        "dataIdentifier": 12352,
+        "byteOffset": 4,
+        "bitMask": 255,
+        "scale": 1.0,
+        "verified": false
+      },
+      "unit": "seconds"
     },
     {
       "id": "hud_speed_unit",
       "moduleId": "hud",
       "name": "HUD Speed Unit",
       "description": "Sets whether the Head-Up Display shows speed in km/h or mph.",
-      "longDescription": "Controls the speed unit shown in the windshield Head-Up Display projection. This setting is independent from the cluster unit setting — you can display km/h in the cluster and mph in the HUD, or keep them in sync. Most drivers will want both set to the same unit. Changes take effect immediately.",
+      "longDescription": "Independent from the cluster unit setting.",
       "valueType": "enum",
       "options": [
-        { "label": "km/h", "value": "kmh" },
-        { "label": "mph", "value": "mph" }
+        {
+          "label": "km/h",
+          "value": "kmh"
+        },
+        {
+          "label": "mph",
+          "value": "mph"
+        }
       ],
       "defaultValue": "kmh",
       "safeDefault": "kmh",
       "demoValue": "kmh",
       "f10Applicable": true,
-      "ecuMap": { "dataIdentifier": 12336, "byteOffset": 0, "bitMask": 255, "encodedValues": { "kmh": "0x00", "mph": "0x01" }, "verified": false }
+      "ecuMap": {
+        "dataIdentifier": 12336,
+        "byteOffset": 0,
+        "bitMask": 255,
+        "encodedValues": {
+          "kmh": "0x00",
+          "mph": "0x01"
+        },
+        "verified": false
+      }
     },
     {
       "id": "hud_nav_arrows",
       "moduleId": "hud",
       "name": "Navigation Arrows in HUD",
       "description": "Displays turn-by-turn navigation arrows and street names in the Head-Up Display.",
-      "longDescription": "When active navigation guidance is running, the next turn arrow and street name are projected directly onto the windshield via the HUD. This eliminates the need to glance down at the cluster or iDrive screen for navigation prompts, keeping your focus closer to the road ahead. Requires an active navigation destination to be set in iDrive.",
+      "longDescription": "Requires an active navigation destination.",
       "valueType": "boolean",
       "defaultValue": "true",
       "safeDefault": "true",
       "demoValue": "true",
       "f10Applicable": true,
-      "ecuMap": { "dataIdentifier": 12336, "byteOffset": 1, "bitMask": 1, "encodedValues": { "true": "0x01", "false": "0x00" }, "verified": false }
+      "ecuMap": {
+        "dataIdentifier": 12336,
+        "byteOffset": 1,
+        "bitMask": 1,
+        "encodedValues": {
+          "true": "0x01",
+          "false": "0x00"
+        },
+        "verified": false
+      }
     },
     {
       "id": "hud_brightness",
       "moduleId": "hud",
       "name": "HUD Default Brightness",
       "description": "The starting brightness level of the HUD projection each time you enter the car.",
-      "longDescription": "The HUD brightness can be adjusted manually via the instrument cluster controls, but this coding sets the default level restored each time you get into the car. Higher values are better for bright daytime driving when the projection must compete with sunlight; lower values are less distracting at night. Level 5 is a good all-day compromise for most climates.",
+      "longDescription": "Level 5 is a good all-day compromise.",
       "valueType": "integer",
       "min": 1,
       "max": 10,
@@ -337,94 +1681,79 @@
       "safeDefault": "5",
       "demoValue": "7",
       "f10Applicable": true,
-      "ecuMap": { "dataIdentifier": 12336, "byteOffset": 2, "bitMask": 255, "scale": 1.0, "verified": false }
+      "ecuMap": {
+        "dataIdentifier": 12336,
+        "byteOffset": 2,
+        "bitMask": 255,
+        "scale": 1.0,
+        "verified": false
+      }
     },
     {
       "id": "hud_speed_warning",
       "moduleId": "hud",
       "name": "HUD Speed Warning",
       "description": "Flashes a warning in the HUD if you exceed this speed. Set to 0 to disable.",
-      "longDescription": "Configures an optional speed warning overlay in the HUD. If your speed exceeds the threshold set here, the speed readout in the HUD will flash periodically as a visual alert. Set to 0 to disable the warning entirely. A value of 130 is useful for German motorway trips where you want a reminder near the advisory limit.",
+      "longDescription": "A value of 130 is useful near the German advisory limit.",
       "valueType": "integer",
       "min": 0,
       "max": 300,
-      "unit": "km/h",
       "defaultValue": "0",
       "safeDefault": "0",
       "demoValue": "130",
       "f10Applicable": true,
-      "ecuMap": { "dataIdentifier": 12336, "byteOffset": 3, "bitMask": 255, "scale": 2.0, "verified": false }
+      "ecuMap": {
+        "dataIdentifier": 12336,
+        "byteOffset": 3,
+        "bitMask": 255,
+        "scale": 2.0,
+        "verified": false
+      },
+      "unit": "km/h"
     },
     {
-      "id": "cas_auto_lock_speed",
-      "moduleId": "cas",
-      "name": "Auto Door Lock Speed",
-      "description": "All doors automatically lock when the car reaches this speed. Set to 0 to disable.",
-      "longDescription": "When you exceed the configured speed, all four doors lock automatically as a passive security measure. BMW's factory default is 15 km/h. Many owners increase this to 30 km/h to avoid premature locking while maneuvering in car parks, or disable it entirely (set to 0) if they find it triggers unexpectedly.",
-      "valueType": "integer",
-      "min": 0,
-      "max": 80,
-      "unit": "km/h",
-      "defaultValue": "15",
-      "safeDefault": "15",
-      "demoValue": "15",
-      "f10Applicable": true,
-      "ecuMap": { "dataIdentifier": 12352, "byteOffset": 0, "bitMask": 255, "scale": 1.0, "verified": false }
-    },
-    {
-      "id": "cas_remote_window",
-      "moduleId": "cas",
-      "name": "Remote Window Operation",
-      "description": "Hold the lock or unlock button on the key fob to close or open all windows.",
-      "longDescription": "With this coding enabled, holding down the lock button on the key fob for 3 seconds closes all windows (and the sunroof if equipped). Holding the unlock button opens them. This is useful if you forgot to close a window before leaving the car, or want to ventilate the interior on a hot day before getting in. The car must be stationary and locked.",
-      "valueType": "boolean",
-      "defaultValue": "false",
-      "safeDefault": "false",
-      "demoValue": "true",
-      "f10Applicable": true,
-      "ecuMap": { "dataIdentifier": 12352, "byteOffset": 1, "bitMask": 1, "encodedValues": { "true": "0x01", "false": "0x00" }, "verified": false }
-    },
-    {
-      "id": "cas_comfort_entry",
-      "moduleId": "cas",
-      "name": "Comfort Access Touch Unlock",
-      "description": "Unlock the car by touching the door handle while the key is in your pocket.",
-      "longDescription": "Comfort Access is BMW's passive keyless entry system. When enabled, you can unlock the car simply by touching (or gripping) the exterior door handle while the key fob is anywhere within about 1.5 metres — in your bag, jacket pocket, or backpack. You never need to take the key out. The Comfort Access hardware (antennas in the door handles) must be physically installed for this to work.",
+      "id": "dme_auto_start_stop",
+      "moduleId": "dme",
+      "name": "Auto Start-Stop",
+      "description": "Allows the engine to stop at idle to save fuel.",
+      "longDescription": "On a 2012 F10 this is a DME coding, not FEM. Disable it here to keep the engine running at lights. The cluster MSA button still works as a temporary override when this is on.",
       "valueType": "boolean",
       "defaultValue": "true",
       "safeDefault": "true",
-      "demoValue": "true",
+      "demoValue": "false",
       "f10Applicable": true,
-      "ecuMap": { "dataIdentifier": 12352, "byteOffset": 2, "bitMask": 1, "encodedValues": { "true": "0x01", "false": "0x00" }, "verified": false }
+      "ecuMap": {
+        "dataIdentifier": 12544,
+        "byteOffset": 0,
+        "bitMask": 1,
+        "encodedValues": {
+          "true": "0x01",
+          "false": "0x00"
+        },
+        "verified": false
+      }
     },
     {
-      "id": "cas_horn_on_lock",
-      "moduleId": "cas",
-      "name": "Horn Confirmation on Lock",
-      "description": "Beeps the horn once to confirm the car locked successfully.",
-      "longDescription": "When enabled, the car gives a single short horn beep every time it locks via the key fob. This is an audible confirmation that locking succeeded, which is useful in noisy car parks where you might not see the hazard light flash. Disable this if you live in an area where a horn beep is disruptive to neighbors or in quiet early-morning parking situations.",
+      "id": "dme_msa_memory",
+      "moduleId": "dme",
+      "name": "Remember Start-Stop Off",
+      "description": "Keeps Auto Start-Stop off across ignition cycles when you press the MSA button.",
+      "longDescription": "Factory MSA always comes back on at the next start. Enable this so off stays off.",
       "valueType": "boolean",
       "defaultValue": "false",
       "safeDefault": "false",
-      "demoValue": "false",
+      "demoValue": "true",
       "f10Applicable": true,
-      "ecuMap": { "dataIdentifier": 12352, "byteOffset": 3, "bitMask": 1, "encodedValues": { "true": "0x01", "false": "0x00" }, "verified": false }
-    },
-    {
-      "id": "cas_auto_relock",
-      "moduleId": "cas",
-      "name": "Auto Re-Lock Timer",
-      "description": "If you unlock the car but do not open a door, it re-locks itself after this many seconds.",
-      "longDescription": "If you remotely unlock the car (for example, from across a car park) but then fail to open any door within the configured time, the car will automatically lock itself again. This protects against accidentally pressing the key fob in your pocket leaving the car unlocked. Set to 0 to disable automatic re-locking if you find it interrupts loading shopping into the boot.",
-      "valueType": "integer",
-      "min": 0,
-      "max": 120,
-      "unit": "seconds",
-      "defaultValue": "30",
-      "safeDefault": "30",
-      "demoValue": "30",
-      "f10Applicable": true,
-      "ecuMap": { "dataIdentifier": 12352, "byteOffset": 4, "bitMask": 255, "scale": 1.0, "verified": false }
+      "ecuMap": {
+        "dataIdentifier": 12544,
+        "byteOffset": 1,
+        "bitMask": 1,
+        "encodedValues": {
+          "true": "0x01",
+          "false": "0x00"
+        },
+        "verified": false
+      }
     }
   ]
 }

@@ -4,7 +4,7 @@ import android.content.Intent
 import android.os.Bundle
 import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
-import androidx.recyclerview.widget.GridLayoutManager
+import androidx.recyclerview.widget.LinearLayoutManager
 import com.bmw.assistant.databinding.ActivityDiagnosticsModulesBinding
 import com.bmw.assistant.ui.common.ConnectionBadge
 
@@ -28,7 +28,7 @@ class DiagnosticsModulesActivity : AppCompatActivity() {
                     .putExtra(DiagnosticsModuleActivity.EXTRA_MODULE_ID, row.module.id)
             )
         }
-        binding.moduleGrid.layoutManager = GridLayoutManager(this, 2)
+        binding.moduleGrid.layoutManager = LinearLayoutManager(this)
         binding.moduleGrid.adapter = adapter
 
         viewModel.modules.observe(this) { adapter.submitList(it) }

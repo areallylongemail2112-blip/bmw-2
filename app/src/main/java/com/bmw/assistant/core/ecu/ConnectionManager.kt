@@ -40,7 +40,8 @@ data class ConnectionState(
     val label: String? = null,
     val message: String? = null,
     val supportsCoding: Boolean = false,
-    val supportsDiagnostics: Boolean = false
+    val supportsDiagnostics: Boolean = false,
+    val vehicleInfo: String? = null
 ) {
     val isConnected get() = status == ConnectionStatus.CONNECTED
     val isDemo get() = type == ConnectionType.DEMO
@@ -61,6 +62,13 @@ object ConnectionManager {
 
     @Volatile private var transport: EcuTransport? = null
 
+    /**
+     * Connection type of the live transport. Kept separately from [current] because
+     * `LiveData.postValue` is asynchronous — callers that run immediately after [connectDemo]
+     * would otherwise still see DISCONNECTED and treat a demo session as hardware.
+     */
+    @Volatile private var liveType: ConnectionType? = null
+
     val current: ConnectionState get() = _state.value ?: ConnectionState()
 
     /**
@@ -75,7 +83,7 @@ object ConnectionManager {
     fun codingEngine(): CodingEngine? {
         val t = transport ?: return null
         if (!t.isConnected) return null
-        return CodingEngine(t, current.isDemo)
+        return CodingEngine(t, liveType == ConnectionType.DEMO)
     }
 
     /** A UDS client bound to the active transport for identification/expert reads. */
@@ -128,15 +136,20 @@ object ConnectionManager {
         try {
             withContext(Dispatchers.IO) { t.connect() }
             transport = t
+            liveType = type
+            val vehicle = withContext(Dispatchers.IO) { identifyVehicle(t, type) }
             _state.postValue(
                 ConnectionState(
                     type, ConnectionStatus.CONNECTED, label,
-                    supportsCoding = t.supportsCoding, supportsDiagnostics = t.supportsDiagnostics
+                    supportsCoding = t.supportsCoding,
+                    supportsDiagnostics = t.supportsDiagnostics,
+                    vehicleInfo = vehicle
                 )
             )
         } catch (e: Exception) {
             runCatching { t.disconnect() }
             transport = null
+            liveType = null
             _state.postValue(
                 ConnectionState(type, ConnectionStatus.ERROR, label, e.message ?: "Connection failed")
             )
@@ -146,8 +159,28 @@ object ConnectionManager {
     fun disconnect() {
         val t = transport
         transport = null
+        liveType = null
         runCatching { t?.disconnect() }
         _state.postValue(ConnectionState())
+    }
+
+    /**
+     * Best-effort VIN / link description. Identification failure must never fail the connection.
+     */
+    private fun identifyVehicle(t: EcuTransport, type: ConnectionType): String? {
+        if (type == ConnectionType.DEMO) {
+            return "Demo 2012 F10 · VIN ${DemoTransport.DEMO_VIN}"
+        }
+        val uds = UdsClient(t)
+        for (addr in intArrayOf(0x40, 0x10, 0x60)) {
+            val data = runCatching { uds.readDataByIdentifier(addr, VIN_DID) }.getOrNull() ?: continue
+            val vin = String(data, Charsets.ISO_8859_1).filter { it.isLetterOrDigit() }.take(17)
+            if (vin.length == 17) {
+                val link = t.description
+                return "VIN $vin · $link"
+            }
+        }
+        return t.description
     }
 
     /**
@@ -262,5 +295,10 @@ object ConnectionManager {
                 (field shl shift) and bitMask
             }
         }
+    }
+
+    companion object {
+        /** UDS DID for the 17-character VIN (ISO 14229 / BMW F-series). */
+        const val VIN_DID = 0xF190
     }
 }

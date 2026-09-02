@@ -4,12 +4,13 @@ One native Android app for **BMW F10 (5 Series)** owners that consolidates two j
 single codebase:
 
 - **Coding** — change what your car does (turn features on/off, adjust values) in plain English,
-  BimmerCode-style. FRM, KOMBI, NBT, HUD, CAS.
+  BimmerCode-style. Control units for a **2012 F10**: ASD, ACSM, IHKA, TRSVC, EGS, FRM (not FEM),
+  Headunit, KOMBI, ICM, JBBF (not REM), FZD, seat module, tailgate, PDC, CAS, HUD, DME.
 - **Diagnostics** — see what your car is doing, BimmerLink-style: read and clear **fault codes
   (DTCs)** and watch **live sensor data** (engine temps, RPM, battery voltage, fuel level…).
 
-Everything runs fully offline in a **demo mode**, and against a real car over an **ENET/DoIP**
-connection.
+Everything runs fully offline in a **demo mode**, and against a real car over **ENET (HSFZ on a
+2012 F10)** or an **ELM327/STN OBD adapter** (Bluetooth, BLE, or WiFi).
 
 > **This is the one folder for all our BMW Android app code.** Earlier attempts (an Expo/React
 > Native prototype and a coding-only native app) have been folded into this single app. There is
@@ -45,8 +46,9 @@ Reading fault codes and live data is passive; **clearing** fault codes is a stan
 operation (codes for faults still present return on the next drive cycle) and is allowed on real
 hardware, always behind a confirmation dialog.
 
-To code a real car you must supply maps verified against *your* car's coding data (its FA/VO and
-I-level). See **[Adding / verifying entries](#adding--verifying-entries)**. Always record a
+To code a real car you must import maps verified against *your* car's coding data (its FA/VO and
+I-level) from **Control units → ⋮ → Import verified maps**, or edit the JSON and set
+`"verified": true`. See **[Adding / verifying entries](#adding--verifying-entries)**. Always record a
 module's original bytes before changing them, and keep the battery charged.
 
 ---
@@ -58,7 +60,7 @@ module's original bytes before changing them, and keep the battery charged.
 | Language / UI | **Kotlin + Views + ViewBinding** (no Compose) | Lightweight; keeps the focus on the transport layer. |
 | Pattern | **MVVM** | ViewModels own state and enforce the connection guard so no screen can write/read without a live link. |
 | Persistence | **Room** (coding) + **in-memory** (diagnostics defs) | Coding modules/values are stored locally and offline; diagnostics definitions are read-only, loaded from a JSON asset. |
-| Transport | **`EcuTransport.transceive(diagAddress, udsRequest)`** | A dumb UDS pipe. `DemoTransport` (offline sim), `EnetDoipTransport` (real DoIP/UDS), `BleObdTransport` (connect/handshake). |
+| Transport | **`EcuTransport.transceive(diagAddress, udsRequest)`** | A dumb UDS pipe. Demo, ENET HSFZ (TCP 6801), ENET DoIP (TCP 13400), ELM327 over BT/BLE/WiFi. |
 | Protocol | **`UdsClient`** | One place that sequences sessions and turns negative responses into readable errors. Both engines build on it. |
 | Coding | **`CodingEngine`** | Read-modify-write of one coding byte, with the verified-map safety gate. |
 | Diagnostics | **`DiagnosticsEngine`** | Fault read/clear (UDS 0x19/0x14) and live-value read/decode (UDS 0x22). |
@@ -75,7 +77,7 @@ minSdk 26 · targetSdk/compileSdk 34 · Java 17 · single APK.
    └─ src/main/
       ├─ AndroidManifest.xml                      # INTERNET + BLE perms, 7 activities
       ├─ assets/
-      │  ├─ codings_f10.json                      # coding definitions (26 codings / 5 modules)
+      │  ├─ codings_f10.json                      # coding definitions (F10 control units)
       │  └─ diagnostics_f10.json                  # live params + DTC catalog + demo faults
       ├─ res/                                      # layouts, drawables, theme
       └─ java/com/bmw/assistant/
@@ -86,10 +88,13 @@ minSdk 26 · targetSdk/compileSdk 34 · Java 17 · single APK.
          │  │  ├─ UdsClient.kt                     # session + RDBI/WDBI/ReadDTC/ClearDTC helpers
          │  │  ├─ ConnectionManager.kt             # app-scoped connection state (singleton)
          │  │  ├─ DemoTransport.kt                 # offline simulation (coding + diagnostics)
-         │  │  ├─ EnetDoipTransport.kt             # real ENET/DoIP + UDS
+         │  │  ├─ EnetHsfzTransport.kt             # 2012 F10 ENET (HSFZ TCP 6801)
+         │  │  ├─ EnetDoipTransport.kt             # ENET/DoIP TCP 13400
+         │  │  ├─ EnetDiscovery.kt                 # UDP find-car (HSFZ 6811 / DoIP 13400)
          │  │  ├─ Hex.kt
-         │  │  ├─ uds/{Uds.kt, Doip.kt, Dtc.kt}    # ISO 14229 + ISO 13400 + DTC parsing
-         │  │  └─ ble/{BleScanner.kt, BleObdTransport.kt}
+         │  │  ├─ uds/{Uds.kt, Doip.kt, Hsfz.kt, Dtc.kt}
+         │  │  ├─ obd/{Elm327Transport.kt, IsoTp.kt, SerialLink.kt}
+         │  │  └─ ble/BleScanner.kt
          │  ├─ coding/CodingEngine.kt              # value <-> byte encode/decode + safety gate
          │  └─ diagnostics/{DiagnosticsEngine.kt, LiveDecoder.kt}
          ├─ data/
@@ -101,9 +106,9 @@ minSdk 26 · targetSdk/compileSdk 34 · Java 17 · single APK.
          │  ├─ home/HomeActivity.kt                # the hub: Coding · Diagnostics · Connection
          │  └─ common/                             # ConnectionBadge, Icons, Event
          └─ feature/
-            ├─ coding/       (module grid → coding list → edit)
-            ├─ diagnostics/  (module grid → faults + live data)
-            └─ connection/   (demo / ENET / BLE)
+            ├─ coding/       (control-unit list → coding list → edit)
+            ├─ diagnostics/  (module list → faults + live data)
+            └─ connection/   (demo / ENET HSFZ·DoIP / OBD BT·BLE·WiFi)
 ```
 
 ---
@@ -228,30 +233,27 @@ connection is live.
 Connection screen → **Start demo mode**. Coding, faults, and live data are all simulated; safe for
 development and demos.
 
-### ENET / WiFi — the coding + diagnostics path
-This is the transport that can actually write F10 coding **and** read live UDS diagnostics (DoIP +
-UDS, the E-Sys/ISTA family).
+### ENET — the coding + diagnostics path (preferred)
 
-1. Connect the car to your phone/laptop network over an **ENET cable** (OBD-II ↔ RJ45; a plain
-   patch cable will **not** work — the cable needs the gateway activation wiring, see the knowledge
-   base §3.1) or via the gateway/adapter WiFi.
-2. Put your device on the same subnet as the car (E-Sys convention: gateway `192.168.0.10`, device
-   something like `192.168.0.20`; F-series may also use `169.254.x.y` link-local).
-3. Connection screen → enter the **IP** (default `192.168.0.10`) and **port** (`13400`) →
-   **Connect over ENET**.
-4. The app performs the DoIP routing-activation handshake, then addresses each module by its
+A **2012 F10 gateway speaks HSFZ on TCP 6801**, not DoIP 13400. DoIP is offered for later cars.
+
+1. Connect the car to the phone over an **ENET cable** (OBD-II ↔ USB-C Ethernet; a plain patch
+   cable will **not** work — see the knowledge base §3.1) or join an ENET-WiFi adapter network.
+2. Switch the ignition on. Connection screen → **Find car on network** (or type `192.168.0.10`).
+3. Leave **HSFZ · 6801 (F10)** selected and tap **Connect over ENET**.
+4. The app frames UDS in HSFZ (or DoIP if you picked that), then addresses each module by its
    diagnostic address.
 
 > Coding writes still require `verified: true` maps — see below.
 
-### Bluetooth (BLE) OBD adapter
-Connection screen → **Scan for BLE adapters** (grant Bluetooth permission) → tap your adapter. The
-app connects over the Nordic UART service and runs an ELM327 reset/echo-off handshake.
+### OBD adapter (Bluetooth, BLE, or WiFi)
 
-BLE is provided for **connection/handshake** only: consumer BLE adapters expose ELM327 serial
-access, not the module-addressed UDS this app uses, so `BleObdTransport.supportsCoding` and
-`supportsDiagnostics` are both `false` and the app routes coding and diagnostics to ENET or demo
-mode. `BleObdTransport` is the place to add an ELM327↔UDS bridge if you have one for your adapter.
+ELM327 / STN dongles (vLinker, OBDLink, UniCarScan, generic v1.5) speak BMW extended-addressed
+UDS on D-CAN. Coding and diagnostics both work; an STN chip is recommended for writes.
+
+- **Bluetooth** — pair the adapter in Android settings, then **Bluetooth – choose paired adapter**.
+- **BLE** — **Scan for BLE adapters** and tap the dongle.
+- **WiFi** — join the adapter hotspot, enter IP/port (default `192.168.0.10:35000`), **Connect WiFi OBD adapter**.
 
 ---
 
@@ -321,11 +323,12 @@ E-Sys (the module's CAFD/NCD) or a known-good cheat-sheet for your car's I-level
 offset, bit mask, and raw value per option — and set `"verified": true` only once confirmed against
 your specific car. Until then the app writes it in demo mode but refuses it on real hardware.
 
-**Diagnostics:** add a `liveData` entry with the module's real DID/scale/offset, and `dtcCatalog`
-entries for any fault codes you want described in plain English.
+The faster path on a phone is **Control units → ⋮ → Import verified maps**: a JSON file of
+`{ "codings": [ { "id": "frm_cornering_lights", "ecuMap": { ... } } ] }`. Imported maps are marked
+verified so hardware writes are allowed for those ids only.
 
-Definitions are seeded into Room / loaded from the asset on first launch. To pick up JSON changes,
-clear app storage (or bump `AppDatabase` version) so it re-seeds.
+Definitions are seeded into Room from the asset. Bump `assetVersion` in `codings_f10.json` to
+re-seed an existing install (backups are kept).
 
 ---
 
@@ -346,8 +349,9 @@ clear app storage (or bump `AppDatabase` version) so it re-seeds.
 ## Notes / limitations
 
 - The bundled coding maps and diagnostics DIDs are illustrative; treat them as templates, not truth.
-- `EnetDoipTransport` implements DoIP routing activation + UDS session/RDBI/WDBI/ReadDTC/ClearDTC.
-  Some modules additionally require **SecurityAccess (0x27)** before a coding write; add a seed/key
-  exchange there if your target module demands it.
+- A 2012 F10 uses **HSFZ** (not DoIP) on ENET. `EnetHsfzTransport` is the default. `EnetDoipTransport`
+  is for later gateways. ELM327 adapters use software ISO-TP on D-CAN (`Elm327Transport`).
+- Some modules additionally require **SecurityAccess (0x27)** before a coding write; the app does
+  not ship a BMW seed-to-key algorithm.
 - This app does **coding and diagnostics only** — it never programs or flashes firmware.
 - Live-data DIDs are read one at a time; the demo transport adds mild jitter so gauges look alive.
