@@ -13,6 +13,12 @@ import kotlin.random.Random
  */
 class DemoTransport : EcuTransport {
 
+    companion object {
+        /** Plausible 2012 F10 VIN used only by the offline simulator. */
+        const val DEMO_VIN = "WBAFR7C52CC123456"
+        private const val VIN_DID = 0xF190
+    }
+
     // key = (diagAddress shl 16) or did
     private val codingBlocks = HashMap<Int, ByteArray>()
     private val liveBlocks = HashMap<Int, ByteArray>()
@@ -46,6 +52,8 @@ class DemoTransport : EcuTransport {
                 byteArrayOf((sid + 0x40).toByte(), request.getOrElse(1) { 0x03 })
             Uds.SID_TESTER_PRESENT ->
                 byteArrayOf((sid + 0x40).toByte(), 0x00)
+            Uds.SID_ECU_RESET ->
+                byteArrayOf((sid + 0x40).toByte(), request.getOrElse(1) { 0x03 })
             Uds.SID_READ_DATA_BY_IDENTIFIER -> readDid(diagAddress, request)
             Uds.SID_WRITE_DATA_BY_IDENTIFIER -> writeDid(diagAddress, request)
             Uds.SID_READ_DTC_INFORMATION -> readDtc(diagAddress, request)
@@ -60,6 +68,12 @@ class DemoTransport : EcuTransport {
     private fun readDid(diagAddress: Int, request: ByteArray): ByteArray {
         if (request.size < 3) return negative(Uds.SID_READ_DATA_BY_IDENTIFIER, 0x13)
         val did = ((request[1].toInt() and 0xFF) shl 8) or (request[2].toInt() and 0xFF)
+        if (did == VIN_DID) {
+            return byteArrayOf(
+                (Uds.SID_READ_DATA_BY_IDENTIFIER + 0x40).toByte(),
+                (did shr 8).toByte(), did.toByte()
+            ) + DEMO_VIN.toByteArray(Charsets.US_ASCII)
+        }
         val k = key(diagAddress, did)
         val data = when {
             liveBlocks.containsKey(k) -> jitter(liveBlocks.getValue(k))

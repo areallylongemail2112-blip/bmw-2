@@ -11,13 +11,19 @@ interface CodingDao {
     @Query("SELECT COUNT(*) FROM modules")
     suspend fun moduleCount(): Int
 
+    @Query("DELETE FROM modules")
+    suspend fun deleteAllModules()
+
+    @Query("DELETE FROM codings")
+    suspend fun deleteAllCodings()
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertModules(modules: List<ModuleEntity>)
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertCodings(codings: List<CodingEntity>)
 
-    @Query("SELECT * FROM modules ORDER BY name")
+    @Query("SELECT * FROM modules ORDER BY fullName")
     suspend fun getModules(): List<ModuleEntity>
 
     @Query("SELECT * FROM modules WHERE id = :id")

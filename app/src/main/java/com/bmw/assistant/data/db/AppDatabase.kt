@@ -14,7 +14,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         CodingValueEntity::class,
         CodingBackupEntity::class
     ],
-    version = 2,
+    version = 4,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -48,7 +48,12 @@ abstract class AppDatabase : RoomDatabase() {
                     context.applicationContext,
                     AppDatabase::class.java,
                     "bmw_assistant.db"
-                ).addMigrations(MIGRATION_1_2).build().also { instance = it }
+                ).addMigrations(MIGRATION_1_2)
+                    // Older sideloads (and the product-improvements experiment) used schema 3.
+                    // Definitions are always re-seeded from JSON, so a wipe is safer than a crash.
+                    .fallbackToDestructiveMigration()
+                    .fallbackToDestructiveMigrationOnDowngrade()
+                    .build().also { instance = it }
             }
     }
 }
