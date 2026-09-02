@@ -21,9 +21,9 @@ class DiagModuleAdapter(
         val item = getItem(position)
         with(holder.binding) {
             moduleIcon.setImageResource(Icons.drawableFor(item.module.iconName))
-            moduleName.text = item.module.name
-            moduleFullName.text = item.module.fullName
-            moduleCount.text = if (item.hasLiveData) "Faults · Live data" else "Fault codes"
+            moduleName.text = item.module.fullName
+            moduleFullName.text = item.module.description
+            moduleCount.text = if (item.hasLiveData) "Live" else "DTC"
             root.setOnClickListener { onClick(item) }
         }
     }

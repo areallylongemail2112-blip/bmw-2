@@ -30,8 +30,8 @@ android {
         applicationId = "com.bmw.assistant"
         minSdk = 26
         targetSdk = 34
-        versionCode = 2
-        versionName = "1.01"
+        versionCode = 3
+        versionName = "1.1"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables { useSupportLibrary = true }
     }

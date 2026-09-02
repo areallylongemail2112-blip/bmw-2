@@ -3,6 +3,10 @@
     xmlns:app="http://schemas.android.com/apk/res-auto">
 
     <item
+        android:id="@+id/action_import_maps"
+        android:title="@string/import_maps"
+        app:showAsAction="never" />
+    <item
         android:id="@+id/action_backups"
         android:icon="@drawable/ic_backups"
         android:title="@string/backups_title"

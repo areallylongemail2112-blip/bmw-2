@@ -37,6 +37,7 @@ data class CodingItem(
 
 /** Root shape of the bundled `codings_f10.json` asset. */
 data class CodingsData(
+    val assetVersion: Int = 1,
     val modules: List<Module>,
     val codings: List<CodingItem>
 )

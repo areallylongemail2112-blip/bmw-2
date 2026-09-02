@@ -65,6 +65,8 @@ class CodingEngine(private val transport: EcuTransport, private val isDemo: Bool
         working[map.byteOffset] = merged.toByte()
 
         uds.writeDataByIdentifier(module.diagAddress, map.dataIdentifier, working)
+        // Many F-series modules only pick up a new coding string after a soft reset.
+        runCatching { uds.ecuReset(module.diagAddress) }
         return merged.toByte()
     }
 
@@ -93,6 +95,7 @@ class CodingEngine(private val transport: EcuTransport, private val isDemo: Bool
         }
         if (block.isEmpty()) throw EcuException("Backup block is empty — nothing to restore.")
         uds.writeDataByIdentifier(module.diagAddress, dataIdentifier, block)
+        runCatching { uds.ecuReset(module.diagAddress) }
     }
 
     /** Reads the current byte for a coding and decodes it back to a friendly value. */

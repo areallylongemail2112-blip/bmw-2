@@ -39,9 +39,28 @@ class UdsClient(private val transport: EcuTransport) {
     /** WriteDataByIdentifier: writes [data] to coding/config block [did]. */
     fun writeDataByIdentifier(diagAddress: Int, did: Int, data: ByteArray, openSession: Boolean = true) {
         if (openSession) openExtendedSession(diagAddress)
-        val resp = transport.transceive(diagAddress, Uds.writeDataByIdentifier(did, data))
+        val request = Uds.writeDataByIdentifier(did, data)
+        if (request.size > transport.maxRequestLength) {
+            throw EcuException(
+                "Coding block is ${data.size} bytes, which this connection cannot carry " +
+                    "(max ${transport.maxRequestLength} bytes per request). " +
+                    "Use an ENET cable or an STN-chip adapter."
+            )
+        }
+        val resp = transport.transceive(diagAddress, request)
         if (!Uds.isPositive(resp, Uds.SID_WRITE_DATA_BY_IDENTIFIER)) {
             throw EcuException("WriteDataByIdentifier(0x%04X) failed: ".format(did) + describe(resp))
+        }
+    }
+
+    /**
+     * Soft-reset the module so newly written coding is applied. Best-effort: some modules
+     * ignore 0x11, which is not a coding failure.
+     */
+    fun ecuReset(diagAddress: Int, resetType: Int = Uds.RESET_SOFT) {
+        val resp = transport.transceive(diagAddress, Uds.ecuReset(resetType))
+        if (!Uds.isPositive(resp, Uds.SID_ECU_RESET)) {
+            throw EcuException("ECUReset failed: " + describe(resp))
         }
     }
 
