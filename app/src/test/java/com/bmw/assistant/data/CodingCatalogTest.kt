@@ -1,6 +1,5 @@
 package com.bmw.assistant.data
 
-import com.google.gson.Gson
 import com.google.gson.JsonObject
 import com.google.gson.JsonParser
 import org.junit.Assert.assertEquals
@@ -78,7 +77,6 @@ class CodingCatalogTest {
 
     @Test
     fun noBundledMapIsVerified() {
-        val gson = Gson()
         for (el in catalog().getAsJsonArray("codings")) {
             val map = el.asJsonObject.getAsJsonObject("ecuMap")
             assertFalse(el.asJsonObject.get("id").asString, map.get("verified").asBoolean)

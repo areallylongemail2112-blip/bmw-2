@@ -57,6 +57,8 @@ data class ConnectionState(
  */
 object ConnectionManager {
 
+    private const val VIN_DID = 0xF190
+
     private val _state = MutableLiveData(ConnectionState())
     val state: LiveData<ConnectionState> = _state
 
@@ -295,10 +297,5 @@ object ConnectionManager {
                 (field shl shift) and bitMask
             }
         }
-    }
-
-    companion object {
-        /** UDS DID for the 17-character VIN (ISO 14229 / BMW F-series). */
-        const val VIN_DID = 0xF190
     }
 }
