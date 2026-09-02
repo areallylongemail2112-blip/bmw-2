@@ -1,6 +1,6 @@
 {
   "_comment": "BMW F10 (2012) coding catalog. Screenshot BimmerCode categories are mapped to F10 modules (FRM not FEM, JBBF not REM). ecuMap blocks are ILLUSTRATIVE and verified:false \u2014 the app writes them in demo mode and refuses them on a real car until you import maps from your own CAFD/NCD. See README.",
-  "assetVersion": 3,
+  "assetVersion": 4,
   "chassis": "F10",
   "modelYear": 2012,
   "modules": [
@@ -80,7 +80,7 @@
       "id": "jbbf",
       "name": "JBBF",
       "fullName": "Rear Electronic Module",
-      "description": "PDC (Park Distance Control), rear lighting, rear view camera (F10 JBBF \u2014 this car has no REM)",
+      "description": "PDC (Park Distance Control), rear lighting, rear view camera, headlight washers, rain sensor (F10 JBBF \u2014 this car has no REM)",
       "iconName": "pdc",
       "diagAddress": 0
     },
@@ -251,6 +251,28 @@
         "verified": false
       },
       "unit": "%"
+    },
+    {
+      "id": "acsm_initial_chime",
+      "moduleId": "acsm",
+      "name": "Initial Seat-Belt Chime",
+      "description": "Plays the initial three-chime seatbelt warning sequence at journey start.",
+      "longDescription": "The three-chime sequence is the first gentle reminder before the continuous chime escalates. Disabling it skips the introductory tone; the main belt-reminder logic (acsm_seatbelt_reminder) is unaffected. Safer default is to keep this on.",
+      "valueType": "boolean",
+      "defaultValue": "true",
+      "safeDefault": "true",
+      "demoValue": "true",
+      "f10Applicable": true,
+      "ecuMap": {
+        "dataIdentifier": 12384,
+        "byteOffset": 3,
+        "bitMask": 1,
+        "encodedValues": {
+          "true": "0x01",
+          "false": "0x00"
+        },
+        "verified": false
+      }
     },
     {
       "id": "ihka_recirc_memory",
@@ -717,6 +739,141 @@
       }
     },
     {
+      "id": "frm_drl_mode",
+      "moduleId": "frm",
+      "name": "DRL Source Mode",
+      "description": "Selects which lamps act as daytime running lights.",
+      "longDescription": "Controls whether DRLs use only the angel-eye rings or also illuminate the tail lights at reduced brightness for better rear visibility. Actual behaviour depends on headlamp hardware fitted to the car.",
+      "valueType": "enum",
+      "options": [
+        {
+          "label": "Rings only",
+          "value": "rings_only"
+        },
+        {
+          "label": "Rings + tail lights",
+          "value": "rings_tail"
+        }
+      ],
+      "defaultValue": "rings_only",
+      "safeDefault": "rings_only",
+      "demoValue": "rings_tail",
+      "f10Applicable": true,
+      "ecuMap": {
+        "dataIdentifier": 12288,
+        "byteOffset": 11,
+        "bitMask": 255,
+        "encodedValues": {
+          "rings_only": "0x00",
+          "rings_tail": "0x01"
+        },
+        "verified": false
+      }
+    },
+    {
+      "id": "frm_angel_eye_brightness",
+      "moduleId": "frm",
+      "name": "Angel-Eye Brightness",
+      "description": "Sets the brightness of the angel-eye rings as a percentage of maximum output.",
+      "longDescription": "Applies to the rings when used as position lights or DRLs. Does not affect xenon bulb output, only the ring elements.",
+      "valueType": "integer",
+      "min": 10,
+      "max": 100,
+      "defaultValue": "70",
+      "safeDefault": "70",
+      "demoValue": "85",
+      "f10Applicable": true,
+      "ecuMap": {
+        "dataIdentifier": 12288,
+        "byteOffset": 12,
+        "bitMask": 255,
+        "scale": 1.0,
+        "verified": false
+      },
+      "unit": "%"
+    },
+    {
+      "id": "frm_welcome_lamps",
+      "moduleId": "frm",
+      "name": "Welcome Lamps Selection",
+      "description": "Selects which exterior lamps join the welcome-light sequence on remote unlock.",
+      "longDescription": "Distinct from welcome-light duration (frm_welcome_lights). Choose whether only the parking/angel-eye lamps, also the low beams, or also the front fog lights illuminate during the welcome sequence.",
+      "valueType": "enum",
+      "options": [
+        {
+          "label": "Parking / Angel eyes",
+          "value": "parking_rings"
+        },
+        {
+          "label": "Parking + dipped beam",
+          "value": "parking_dipped"
+        },
+        {
+          "label": "Parking + dipped + fog",
+          "value": "parking_dipped_fog"
+        }
+      ],
+      "defaultValue": "parking_rings",
+      "safeDefault": "parking_rings",
+      "demoValue": "parking_dipped",
+      "f10Applicable": true,
+      "ecuMap": {
+        "dataIdentifier": 12288,
+        "byteOffset": 13,
+        "bitMask": 255,
+        "encodedValues": {
+          "parking_rings": "0x00",
+          "parking_dipped": "0x01",
+          "parking_dipped_fog": "0x02"
+        },
+        "verified": false
+      }
+    },
+    {
+      "id": "frm_ess_brake_flash",
+      "moduleId": "frm",
+      "name": "Emergency Brake Flasher",
+      "description": "Rapidly flashes the brake lights during hard braking to warn following traffic.",
+      "longDescription": "Activates when deceleration exceeds the ESS (Emergency Stop Signal) threshold. Works independently of ABS. Complies with ECE R48 in most European markets.",
+      "valueType": "boolean",
+      "defaultValue": "true",
+      "safeDefault": "true",
+      "demoValue": "true",
+      "f10Applicable": true,
+      "ecuMap": {
+        "dataIdentifier": 12288,
+        "byteOffset": 14,
+        "bitMask": 1,
+        "encodedValues": {
+          "true": "0x01",
+          "false": "0x00"
+        },
+        "verified": false
+      }
+    },
+    {
+      "id": "frm_ambient_brightness",
+      "moduleId": "frm",
+      "name": "Ambient Lighting Brightness",
+      "description": "Sets the brightness of the interior ambient LED strips as a percentage.",
+      "longDescription": "The F10 ambient LEDs default to ice-blue (see frm_ambient_color) at a factory brightness that can feel dim. Raise this value for a more prominent glow. RGB retrofit strips may clip near 100%.",
+      "valueType": "integer",
+      "min": 10,
+      "max": 100,
+      "defaultValue": "60",
+      "safeDefault": "60",
+      "demoValue": "80",
+      "f10Applicable": true,
+      "ecuMap": {
+        "dataIdentifier": 12288,
+        "byteOffset": 15,
+        "bitMask": 255,
+        "scale": 1.0,
+        "verified": false
+      },
+      "unit": "%"
+    },
+    {
       "id": "hu_video_in_motion",
       "moduleId": "hu",
       "name": "Video in Motion",
@@ -841,6 +998,72 @@
       "ecuMap": {
         "dataIdentifier": 12320,
         "byteOffset": 5,
+        "bitMask": 1,
+        "encodedValues": {
+          "true": "0x01",
+          "false": "0x00"
+        },
+        "verified": false
+      }
+    },
+    {
+      "id": "hu_legal_disclaimers",
+      "moduleId": "hu",
+      "name": "Legal Disclaimer Skip",
+      "description": "Suppresses or shortens the legal disclaimer shown on navigation, camera, and PDC screens at startup.",
+      "longDescription": "The CIC displays a legal screen before navigation and camera views. Enabling this skips or shortens those prompts. The disclaimer content itself is unchanged; you acknowledge the terms when you configure the car.",
+      "valueType": "boolean",
+      "defaultValue": "false",
+      "safeDefault": "false",
+      "demoValue": "true",
+      "f10Applicable": true,
+      "ecuMap": {
+        "dataIdentifier": 12320,
+        "byteOffset": 6,
+        "bitMask": 1,
+        "encodedValues": {
+          "true": "0x01",
+          "false": "0x00"
+        },
+        "verified": false
+      }
+    },
+    {
+      "id": "hu_screen_off_door",
+      "moduleId": "hu",
+      "name": "Screen Off on Door Open",
+      "description": "Turns the iDrive screen off automatically when the driver door is opened.",
+      "longDescription": "Useful for privacy and to reduce cabin light when parked. The screen returns when the door is closed or the system is touched.",
+      "valueType": "boolean",
+      "defaultValue": "false",
+      "safeDefault": "false",
+      "demoValue": "false",
+      "f10Applicable": true,
+      "ecuMap": {
+        "dataIdentifier": 12320,
+        "byteOffset": 7,
+        "bitMask": 1,
+        "encodedValues": {
+          "true": "0x01",
+          "false": "0x00"
+        },
+        "verified": false
+      }
+    },
+    {
+      "id": "hu_tpms_display",
+      "moduleId": "hu",
+      "name": "TPMS Tire Pressure Display",
+      "description": "Shows individual tire pressures (and temperature if available) in the iDrive menu.",
+      "longDescription": "Requires RDC (Reifendruckkontrolle) wheel-speed and pressure sensors to be fitted. Many F10s have RDC as standard or an option; without the hardware this menu item has no data to display.",
+      "valueType": "boolean",
+      "defaultValue": "false",
+      "safeDefault": "false",
+      "demoValue": "true",
+      "f10Applicable": true,
+      "ecuMap": {
+        "dataIdentifier": 12320,
+        "byteOffset": 8,
         "bitMask": 1,
         "encodedValues": {
           "true": "0x01",
@@ -1132,6 +1355,27 @@
       }
     },
     {
+      "id": "icm_acc_distance",
+      "moduleId": "icm",
+      "name": "ACC Default Following Distance",
+      "description": "Sets the default following distance step for Active Cruise Control at ignition-on.",
+      "longDescription": "Step 1 is the shortest gap, step 4 the longest. The driver can still adjust while driving using the stalk. ACC radar hardware (SA 5DP) must be fitted; coding this without ACC hardware has no effect.",
+      "valueType": "integer",
+      "min": 1,
+      "max": 4,
+      "defaultValue": "3",
+      "safeDefault": "3",
+      "demoValue": "2",
+      "f10Applicable": true,
+      "ecuMap": {
+        "dataIdentifier": 12448,
+        "byteOffset": 3,
+        "bitMask": 255,
+        "scale": 1.0,
+        "verified": false
+      }
+    },
+    {
       "id": "jbbf_pdc_auto",
       "moduleId": "jbbf",
       "name": "PDC Auto-On in Reverse",
@@ -1215,6 +1459,112 @@
         "encodedValues": {
           "true": "0x01",
           "false": "0x00"
+        },
+        "verified": false
+      }
+    },
+    {
+      "id": "jbbf_headlight_washers",
+      "moduleId": "jbbf",
+      "name": "Headlight Washer Pump",
+      "description": "Enables the headlight washer pump when the windscreen washers are used at speed.",
+      "longDescription": "Activates the headlight washer nozzles and pump. The nozzle bezels and pump must be physically installed (many F10s had this as an option). Coding this on a car without the hardware will attempt to energise a pump that does not exist.",
+      "valueType": "boolean",
+      "defaultValue": "false",
+      "safeDefault": "false",
+      "demoValue": "false",
+      "f10Applicable": true,
+      "ecuMap": {
+        "dataIdentifier": 12464,
+        "byteOffset": 4,
+        "bitMask": 1,
+        "encodedValues": {
+          "true": "0x01",
+          "false": "0x00"
+        },
+        "verified": false
+      }
+    },
+    {
+      "id": "jbbf_rain_sensor",
+      "moduleId": "jbbf",
+      "name": "Rain Sensor Sensitivity",
+      "description": "Adjusts how aggressively the automatic wipers respond to rain.",
+      "longDescription": "Higher sensitivity triggers the wipers earlier and more frequently in light rain. Lower sensitivity is better for drizzle-heavy climates where the default feels too reactive. Requires the rain/light sensor in the interior mirror (RLS on JBBF), not the KAFAS camera.",
+      "valueType": "enum",
+      "options": [
+        {
+          "label": "Insensitive",
+          "value": "insensitive"
+        },
+        {
+          "label": "Normal",
+          "value": "normal"
+        },
+        {
+          "label": "Sensitive",
+          "value": "sensitive"
+        },
+        {
+          "label": "Very sensitive",
+          "value": "very_sensitive"
+        }
+      ],
+      "defaultValue": "normal",
+      "safeDefault": "normal",
+      "demoValue": "sensitive",
+      "f10Applicable": true,
+      "ecuMap": {
+        "dataIdentifier": 12464,
+        "byteOffset": 5,
+        "bitMask": 255,
+        "encodedValues": {
+          "insensitive": "0x00",
+          "normal": "0x01",
+          "sensitive": "0x02",
+          "very_sensitive": "0x03"
+        },
+        "verified": false
+      }
+    },
+    {
+      "id": "jbbf_seat_heat_memory",
+      "moduleId": "jbbf",
+      "name": "Seat Heat Setting Retention",
+      "description": "How long the seat-heat stage is remembered between ignition cycles.",
+      "longDescription": "Controls whether the junction box retains the last seat-heat stage and for how long. Distinct from the SM default stage (sm_heat_memory), which sets a fixed start value. 'Until changed' means the stage persists indefinitely.",
+      "valueType": "enum",
+      "options": [
+        {
+          "label": "Off (always reset)",
+          "value": "off"
+        },
+        {
+          "label": "15 minutes",
+          "value": "15min"
+        },
+        {
+          "label": "24 hours",
+          "value": "24h"
+        },
+        {
+          "label": "Until changed",
+          "value": "permanent"
+        }
+      ],
+      "defaultValue": "off",
+      "safeDefault": "off",
+      "demoValue": "24h",
+      "f10Applicable": true,
+      "ecuMap": {
+        "dataIdentifier": 12464,
+        "byteOffset": 6,
+        "bitMask": 255,
+        "encodedValues": {
+          "off": "0x00",
+          "15min": "0x01",
+          "24h": "0x02",
+          "permanent": "0x03"
         },
         "verified": false
       }
@@ -1439,6 +1789,50 @@
       }
     },
     {
+      "id": "hkl_interior_close",
+      "moduleId": "hkl",
+      "name": "Close from Interior Button",
+      "description": "Enables closing the power tailgate using the interior boot-release button.",
+      "longDescription": "The interior button in the boot area can be used to pull the tailgate closed from inside. Requires the power tailgate motor to be installed.",
+      "valueType": "boolean",
+      "defaultValue": "true",
+      "safeDefault": "true",
+      "demoValue": "true",
+      "f10Applicable": true,
+      "ecuMap": {
+        "dataIdentifier": 12512,
+        "byteOffset": 3,
+        "bitMask": 1,
+        "encodedValues": {
+          "true": "0x01",
+          "false": "0x00"
+        },
+        "verified": false
+      }
+    },
+    {
+      "id": "hkl_fob_close_short",
+      "moduleId": "hkl",
+      "name": "Close from Fob (Short Press)",
+      "description": "Closes the power tailgate with a short press of the key fob boot button instead of a long press.",
+      "longDescription": "Factory default requires a long press on the boot button to close the tailgate. Enable this for a single normal press. The existing hkl_fob_open behaviour (open) is a separate coding and is unaffected.",
+      "valueType": "boolean",
+      "defaultValue": "false",
+      "safeDefault": "false",
+      "demoValue": "true",
+      "f10Applicable": true,
+      "ecuMap": {
+        "dataIdentifier": 12512,
+        "byteOffset": 4,
+        "bitMask": 1,
+        "encodedValues": {
+          "true": "0x01",
+          "false": "0x00"
+        },
+        "verified": false
+      }
+    },
+    {
       "id": "pdc_volume",
       "moduleId": "pdc",
       "name": "PDC Volume",
@@ -1615,6 +2009,94 @@
       "unit": "seconds"
     },
     {
+      "id": "cas_msa_memory",
+      "moduleId": "cas",
+      "name": "Remember Auto Start-Stop Off",
+      "description": "Keeps Auto Start-Stop disabled across ignition cycles when you press the MSA button.",
+      "longDescription": "On pre-LCI F10s (including 2012) this memory function is typically coded in CAS rather than DME. If cas_msa_memory does not work on your car, try dme_msa_memory instead \u2014 both items exist in the catalog because different ECU builds handle this on different modules. Do not delete the DME item.",
+      "valueType": "boolean",
+      "defaultValue": "false",
+      "safeDefault": "false",
+      "demoValue": "true",
+      "f10Applicable": true,
+      "ecuMap": {
+        "dataIdentifier": 12352,
+        "byteOffset": 5,
+        "bitMask": 1,
+        "encodedValues": {
+          "true": "0x01",
+          "false": "0x00"
+        },
+        "verified": false
+      }
+    },
+    {
+      "id": "cas_msa_default_off",
+      "moduleId": "cas",
+      "name": "Start with Auto Start-Stop Off",
+      "description": "Auto Start-Stop is off at every ignition-on without pressing the MSA button.",
+      "longDescription": "Stronger than memory: the system always starts deactivated. The MSA button can still re-enable it for the current trip. On pre-LCI 2012 F10 this function typically lives in CAS.",
+      "valueType": "boolean",
+      "defaultValue": "false",
+      "safeDefault": "false",
+      "demoValue": "true",
+      "f10Applicable": true,
+      "ecuMap": {
+        "dataIdentifier": 12352,
+        "byteOffset": 6,
+        "bitMask": 1,
+        "encodedValues": {
+          "true": "0x01",
+          "false": "0x00"
+        },
+        "verified": false
+      }
+    },
+    {
+      "id": "cas_comfort_close_ca",
+      "moduleId": "cas",
+      "name": "Comfort Access Close",
+      "description": "Locks and closes the car by touching the door handle from outside while the key is in your pocket.",
+      "longDescription": "Distinct from cas_remote_window (fob window operation). Requires Comfort Access antennas (SA 322) and must be enabled in CAS. Touch the handle exterior sensor area while all doors are shut to lock and trigger comfort close.",
+      "valueType": "boolean",
+      "defaultValue": "false",
+      "safeDefault": "false",
+      "demoValue": "true",
+      "f10Applicable": true,
+      "ecuMap": {
+        "dataIdentifier": 12352,
+        "byteOffset": 7,
+        "bitMask": 1,
+        "encodedValues": {
+          "true": "0x01",
+          "false": "0x00"
+        },
+        "verified": false
+      }
+    },
+    {
+      "id": "cas_unlock_key_out",
+      "moduleId": "cas",
+      "name": "Unlock on Key Removal",
+      "description": "Automatically unlocks the doors when the ignition key is removed or the engine is switched off.",
+      "longDescription": "Unlocks all doors when CAS detects the key has been extracted (or the engine has been switched off for keyless-start cars). Useful if you prefer the car unlocked the moment you stop.",
+      "valueType": "boolean",
+      "defaultValue": "false",
+      "safeDefault": "false",
+      "demoValue": "false",
+      "f10Applicable": true,
+      "ecuMap": {
+        "dataIdentifier": 12352,
+        "byteOffset": 8,
+        "bitMask": 1,
+        "encodedValues": {
+          "true": "0x01",
+          "false": "0x00"
+        },
+        "verified": false
+      }
+    },
+    {
       "id": "hud_speed_unit",
       "moduleId": "hud",
       "name": "HUD Speed Unit",
@@ -1710,6 +2192,28 @@
         "verified": false
       },
       "unit": "km/h"
+    },
+    {
+      "id": "hud_turn_signals",
+      "moduleId": "hud",
+      "name": "Turn Signal Arrows in HUD",
+      "description": "Displays turn-signal indicator arrows in the Head-Up Display when indicating.",
+      "longDescription": "Shows left or right arrow overlays in the HUD projection while the turn signal is active. Requires SA 610 HUD hardware. A complementary coding in KOMBI may be needed on some builds to fully enable HUD turn-signal content \u2014 the HUD item here is the primary toggle.",
+      "valueType": "boolean",
+      "defaultValue": "false",
+      "safeDefault": "false",
+      "demoValue": "true",
+      "f10Applicable": true,
+      "ecuMap": {
+        "dataIdentifier": 12336,
+        "byteOffset": 4,
+        "bitMask": 1,
+        "encodedValues": {
+          "true": "0x01",
+          "false": "0x00"
+        },
+        "verified": false
+      }
     },
     {
       "id": "dme_auto_start_stop",

@@ -18,7 +18,7 @@ class CodingCatalogTest {
 
     @Test
     fun assetVersionIsSet() {
-        assertEquals(3, catalog().get("assetVersion").asInt)
+        assertEquals(4, catalog().get("assetVersion").asInt)
     }
 
     @Test
@@ -73,6 +73,27 @@ class CodingCatalogTest {
         assertTrue(has("dme", "Start-Stop") || has("dme", "Start Stop"))
         assertTrue(has("jbbf", "PDC") || has("pdc", "PDC"))
         assertTrue(has("frm", "mirror") || has("frm", "Mirror"))
+
+        // New v4 items
+        assertTrue(has("frm", "DRL") && has("frm", "Source Mode") || has("frm", "DRL Source"))
+        assertTrue(has("frm", "Angel") && has("frm", "Brightness") || has("frm", "angel-eye brightness"))
+        assertTrue(has("frm", "Welcome Lamps") || has("frm", "welcome lamps"))
+        assertTrue(has("frm", "Brake") || has("frm", "brake flash") || has("frm", "ESS"))
+        assertTrue(has("frm", "Ambient") && has("frm", "Brightness") || has("frm", "ambient brightness"))
+        assertTrue(has("cas", "Start-Stop") || has("cas", "MSA"))
+        assertTrue(has("cas", "Comfort Access Close") || has("cas", "Comfort Access") && has("cas", "Close"))
+        assertTrue(has("cas", "Key Removal") || has("cas", "key out") || has("cas", "Unlock on Key"))
+        assertTrue(has("hu", "disclaimer") || has("hu", "Disclaimer") || has("hu", "legal"))
+        assertTrue(has("hu", "Screen Off") || has("hu", "screen off"))
+        assertTrue(has("hu", "TPMS") || has("hu", "Tire Pressure") || has("hu", "tire pressure"))
+        assertTrue(has("icm", "distance") || has("icm", "Distance") || has("icm", "following"))
+        assertTrue(has("hud", "turn") || has("hud", "Turn signal") || has("hud", "indicator"))
+        assertTrue(has("acsm", "chime") || has("acsm", "Chime") || has("acsm", "initial"))
+        assertTrue(has("jbbf", "washer") || has("jbbf", "Washer") || has("jbbf", "headlight wash"))
+        assertTrue(has("jbbf", "rain") || has("jbbf", "Rain") || has("jbbf", "sensor sensitivity"))
+        assertTrue(has("jbbf", "seat") || has("jbbf", "Seat") || has("jbbf", "heat memory"))
+        assertTrue(has("hkl", "interior") || has("hkl", "Interior") || has("hkl", "Close from Interior"))
+        assertTrue(has("hkl", "short") || has("hkl", "Short Press") || has("hkl", "fob close"))
     }
 
     @Test
@@ -82,6 +103,6 @@ class CodingCatalogTest {
             assertFalse(el.asJsonObject.get("id").asString, map.get("verified").asBoolean)
             assertTrue(map.get("dataIdentifier").asInt > 0)
         }
-        assertTrue(catalog().getAsJsonArray("codings").size() >= 60)
+        assertTrue(catalog().getAsJsonArray("codings").size() >= 85)
     }
 }
