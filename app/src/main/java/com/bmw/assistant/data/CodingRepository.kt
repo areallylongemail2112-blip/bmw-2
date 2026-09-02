@@ -33,21 +33,38 @@ class CodingRepository private constructor(
 
     /**
      * Seeds (or re-seeds) module/coding definitions from the bundled JSON asset whenever the
-     * asset's `catalogVersion` is newer than the one last written to the database, so an app
-     * update actually delivers new maps to existing installs. Values and backups are kept —
-     * they are keyed by coding id, not by row.
+     * asset's `assetVersion` is newer than the one last written to the database, so an app
+     * update actually delivers corrected maps to existing installs instead of only to fresh
+     * ones. Values and backups are kept — they are keyed by coding id, not by row.
      */
     suspend fun ensureSeeded() = withContext(Dispatchers.IO) {
         val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
-        val seeded = prefs.getInt(KEY_CATALOG_VERSION, 0)
         val data = CodingAssetLoader.load(context)
-        val assetVersion = data.catalogVersion
-        if (dao.moduleCount() > 0 && seeded >= assetVersion) return@withContext
+        val stored = prefs.getInt(KEY_ASSET_VERSION, 0)
+        if (dao.moduleCount() > 0 && stored >= data.assetVersion) return@withContext
         dao.deleteAllCodings()
         dao.deleteAllModules()
         dao.insertModules(data.modules.map { it.toEntity() })
         dao.insertCodings(data.codings.map { it.toEntity() })
-        prefs.edit().putInt(KEY_CATALOG_VERSION, assetVersion).apply()
+        prefs.edit().putInt(KEY_ASSET_VERSION, data.assetVersion).apply()
+    }
+
+    /**
+     * Overlay verified ECU maps imported by the user (from their own CAFD/NCD). Matching
+     * coding ids have their map replaced and marked verified so hardware writes are allowed.
+     * @return number of catalog entries updated.
+     */
+    suspend fun importVerifiedMaps(patches: List<VerifiedMapPatch>): Int = withContext(Dispatchers.IO) {
+        var updated = 0
+        val toWrite = ArrayList<CodingEntity>()
+        for (patch in patches) {
+            val existing = dao.getCoding(patch.id) ?: continue
+            val map = patch.ecuMap.copy(verified = true)
+            toWrite += existing.copy(ecuMapJson = gson.toJson(map))
+            updated++
+        }
+        if (toWrite.isNotEmpty()) dao.insertCodings(toWrite)
+        updated
     }
 
     /**
@@ -206,8 +223,8 @@ class CodingRepository private constructor(
     }
 
     companion object {
-        private const val PREFS = "coding_catalog"
-        private const val KEY_CATALOG_VERSION = "catalog_version"
+        private const val PREFS = "bmw_assistant"
+        private const val KEY_ASSET_VERSION = "coding_asset_version"
 
         @Volatile private var instance: CodingRepository? = null
 

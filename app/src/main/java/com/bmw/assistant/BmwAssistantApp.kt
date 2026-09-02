@@ -17,7 +17,12 @@ class BmwAssistantApp : Application() {
         super.onCreate()
         // Seed the coding DB and preload diagnostics definitions from the bundled JSON assets.
         CoroutineScope(Dispatchers.IO).launch {
-            codingRepository.ensureSeeded()
+            try {
+                codingRepository.ensureSeeded()
+            } catch (_: Exception) {
+                deleteDatabase("bmw_assistant.db")
+                codingRepository.ensureSeeded()
+            }
             diagnosticsRepository.ensureLoaded()
         }
     }

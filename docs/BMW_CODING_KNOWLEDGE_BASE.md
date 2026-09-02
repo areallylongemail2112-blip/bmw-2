@@ -131,17 +131,26 @@ This app does **coding only** — editing configuration bytes. It never flashes 
 
 The F10 is a FlexRay/CAN car with a central gateway (**ZGW**). Common codeable modules:
 
-| Short | Full name                        | Typical diag address | What it owns |
-|-------|----------------------------------|----------------------|--------------|
-| CAS   | Car Access System                | 0x40                 | Keys, locking, comfort access, immobiliser |
-| FRM   | Footwell Module (FRM3 on F10)    | 0x72                 | Exterior + interior lighting, DRLs, ambient |
-| KOMBI | Instrument Cluster               | 0x60                 | Gauges, needle sweep, digital speed, warnings |
-| HU_NBT| Head Unit (NBT iDrive)           | 0x63                 | iDrive, nav, media, video-in-motion, menus |
-| HUD   | Head-Up Display                  | 0x68                 | Windshield projection content + brightness |
-| FZD   | Roof Function Centre             | —                    | Interior roof controls, SOS, interior light |
-| ZGW   | Central Gateway                  | 0x10                 | Routing; the DoIP entry point (not user-coded) |
-| DSC   | Dynamic Stability Control        | —                    | Brakes/traction; source for Sport Display data |
-| KAFAS | Camera-based driver assistance   | —                    | Lane departure, speed-limit-info source |
+| Short | Full name (BimmerCode-style)     | Typical diag address | F10 notes |
+|-------|----------------------------------|----------------------|-----------|
+| ASD   | Active Sound Design              | 0x3F                 | Optional speaker |
+| ACSM  | Advanced Crash Safety Module     | 0x01                 | Seat belt reminder |
+| IHKA  | Air Conditioning                 | 0x78                 | Climate |
+| TRSVC | Allround View Camera             | 0x06                 | Side/rear cameras if fitted |
+| EGS   | Electronic Transmission Control  | 0x18                 | Shift character |
+| FRM   | Front Electronic Module          | 0x72                 | **FRM3** on F10 (no FEM). Lighting, mirrors |
+| HU    | Headunit (CIC on 2012)           | 0x63                 | iDrive, video, audio |
+| KOMBI | Instrument Cluster               | 0x60                 | Gauges, warnings |
+| ICM   | Integrated Chassis Management    | 0x1C                 | ACC, driving mode |
+| JBBF  | Rear Electronic Module           | 0x00                 | **JBBF** on F10 (no REM). PDC, windows |
+| FZD   | Roof Function Center             | 0x56                 | Siren, interior light |
+| SM    | Seat Module Driver               | 0x6D                 | Seat heat |
+| HKL   | Tailgate Function Module         | 0x6C                 | Power tailgate if fitted |
+| PDC   | Park Distance Control            | 0x07                 | Sensors |
+| CAS   | Car Access System                | 0x40                 | Keys, locking |
+| HUD   | Head-Up Display                  | 0x68                 | Windshield projection |
+| DME   | Engine Control                   | 0x12                 | Auto Start-Stop on F10 |
+| ZGW   | Central Gateway                  | 0x10                 | HSFZ/DoIP entry; not user-coded |
 
 > The diagnostic addresses above are the well-known F-series logical addresses; the app stores
 > them per module and uses them as the DoIP **target address** when talking over ENET. They are

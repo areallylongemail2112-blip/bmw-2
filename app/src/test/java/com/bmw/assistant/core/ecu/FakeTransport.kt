@@ -12,10 +12,13 @@ class FakeTransport(
     private val liveBlocks: MutableMap<Pair<Int, Int>, ByteArray> = mutableMapOf(),
     private val faults: MutableMap<Int, MutableList<ByteArray>> = mutableMapOf(),
     override val supportsCoding: Boolean = true,
-    override val supportsDiagnostics: Boolean = true
+    override val supportsDiagnostics: Boolean = true,
+    override val maxRequestLength: Int = 4095
 ) : EcuTransport {
 
     override var isConnected: Boolean = true
+    var resetCount: Int = 0
+        private set
 
     override fun connect() { isConnected = true }
     override fun disconnect() { isConnected = false }
@@ -25,6 +28,12 @@ class FakeTransport(
         return when (sid) {
             Uds.SID_DIAGNOSTIC_SESSION_CONTROL ->
                 byteArrayOf((sid + 0x40).toByte(), request.getOrElse(1) { 0x03 })
+            Uds.SID_ECU_RESET -> {
+                resetCount++
+                byteArrayOf((sid + 0x40).toByte(), request.getOrElse(1) { 0x03 })
+            }
+            Uds.SID_TESTER_PRESENT ->
+                byteArrayOf((sid + 0x40).toByte(), 0x00)
             Uds.SID_READ_DATA_BY_IDENTIFIER -> {
                 val did = ((request[1].toInt() and 0xFF) shl 8) or (request[2].toInt() and 0xFF)
                 val data = liveBlocks[diagAddress to did]

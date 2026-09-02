@@ -259,7 +259,7 @@ class CodingEngineTest {
             engine.applyCoding(module, item, "1")
         }
 
-        assertTrue(error.message!!.contains("can only send"))
+        assertTrue(error.message!!.contains("cannot carry"))
         // Nothing was written: the block is untouched.
         assertArrayEquals(ByteArray(8), transport.read(0x72, 0x3000))
     }
@@ -275,5 +275,41 @@ class CodingEngineTest {
         }
 
         assertTrue(error.message!!.contains("does not match the backup"))
+    }
+
+    @Test
+    fun applyCoding_softResetsModule() {
+        val transport = FakeTransport()
+        transport.putCoding(0x72, 0x3000, ByteArray(8))
+        val engine = CodingEngine(transport, isDemo = true)
+        val item = coding(
+            ValueType.BOOLEAN,
+            EcuMap(
+                dataIdentifier = 0x3000,
+                byteOffset = 0,
+                bitMask = 0x01,
+                encodedValues = mapOf("true" to "0x01", "false" to "0x00"),
+                verified = true
+            ),
+            defaultValue = "false"
+        )
+        engine.applyCoding(module, item, "true")
+        assertTrue(transport.resetCount >= 1)
+    }
+
+    @Test
+    fun applyCoding_refusesWhenRequestExceedsMaxLength() {
+        val transport = FakeTransport(maxRequestLength = 4)
+        transport.putCoding(0x72, 0x3000, ByteArray(8))
+        val engine = CodingEngine(transport, isDemo = true)
+        val item = coding(
+            ValueType.INTEGER,
+            EcuMap(dataIdentifier = 0x3000, byteOffset = 0, bitMask = 0xFF, verified = true),
+            defaultValue = "0"
+        )
+        val ex = assertThrows(EcuException::class.java) {
+            engine.applyCoding(module, item, "1")
+        }
+        assertTrue(ex.message!!.contains("cannot carry"))
     }
 }

@@ -5,55 +5,66 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:layout_margin="6dp"
-    app:cardCornerRadius="16dp"
-    app:cardElevation="2dp"
+    android:layout_marginStart="4dp"
+    android:layout_marginEnd="4dp"
+    android:layout_marginTop="4dp"
+    android:layout_marginBottom="4dp"
+    app:cardCornerRadius="12dp"
+    app:cardElevation="0dp"
     app:strokeColor="@color/outline"
     app:strokeWidth="1dp">
 
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="vertical"
-        android:padding="16dp">
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:padding="14dp">
 
         <ImageView
             android:id="@+id/moduleIcon"
-            android:layout_width="48dp"
-            android:layout_height="48dp"
+            android:layout_width="44dp"
+            android:layout_height="44dp"
             android:background="@drawable/bg_icon_circle"
-            android:padding="12dp"
+            android:padding="10dp"
             android:contentDescription="@string/app_name" />
 
-        <TextView
-            android:id="@+id/moduleName"
-            android:layout_width="wrap_content"
+        <LinearLayout
+            android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:layout_marginTop="12dp"
-            android:textAppearance="@style/CardTitle"
-            tools:text="FRM" />
+            android:layout_weight="1"
+            android:layout_marginStart="14dp"
+            android:orientation="vertical">
 
-        <TextView
-            android:id="@+id/moduleFullName"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="2dp"
-            android:maxLines="2"
-            android:ellipsize="end"
-            android:textAppearance="@style/CardBody"
-            tools:text="Footwell Module" />
+            <TextView
+                android:id="@+id/moduleName"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:textAppearance="@style/CardTitle"
+                tools:text="Front Electronic Module" />
+
+            <TextView
+                android:id="@+id/moduleFullName"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="2dp"
+                android:maxLines="2"
+                android:ellipsize="end"
+                android:textAppearance="@style/CardBody"
+                tools:text="Auto Start Stop, lighting, mirrors" />
+        </LinearLayout>
 
         <TextView
             android:id="@+id/moduleCount"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginTop="10dp"
+            android:layout_marginStart="8dp"
             android:background="@drawable/bg_value_pill"
-            android:paddingHorizontal="10dp"
+            android:paddingHorizontal="8dp"
             android:paddingVertical="4dp"
             android:textColor="@color/primary"
-            android:textSize="12sp"
+            android:textSize="11sp"
             android:textStyle="bold"
-            tools:text="6 codings" />
+            tools:text="6" />
     </LinearLayout>
 </com.google.android.material.card.MaterialCardView>

@@ -42,6 +42,10 @@ class ConnectionActivity : AppCompatActivity() {
     /** What to run once a permission request comes back granted. */
     private var afterPermission: (() -> Unit)? = null
 
+    private enum class PendingAction { NONE, SCAN_BLE, PAIRED_BT, CONNECT_BLE }
+    private var pending = PendingAction.NONE
+    private var pendingBle: BleDevice? = null
+
     private val permissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
     ) { grants ->
@@ -82,6 +86,9 @@ class ConnectionActivity : AppCompatActivity() {
         viewModel.discovered.observe(this) { ev ->
             ev.getIfNotHandled()?.let { onGatewaysDiscovered(it) }
         }
+        viewModel.notice.observe(this) { ev ->
+            ev.getIfNotHandled()?.let { snack(it) }
+        }
     }
 
     // --- rendering ---
@@ -98,18 +105,10 @@ class ConnectionActivity : AppCompatActivity() {
         binding.progress.visibility = if (connecting) View.VISIBLE else View.GONE
         binding.disconnectButton.visibility = if (connected) View.VISIBLE else View.GONE
 
-        binding.vehicleText.text = if (!connected) "" else buildString {
-            ConnectionManager.transportDescription()?.let { append(it) }
-            if (!state.isDemo) {
-                if (isNotEmpty()) append("\n")
-                append(
-                    state.vin?.let { getString(R.string.conn_vin, it) }
-                        ?: getString(R.string.conn_vin_unknown)
-                )
-            }
-        }
-        binding.vehicleText.visibility =
-            if (binding.vehicleText.text.isNullOrEmpty()) View.GONE else View.VISIBLE
+        // Which car, over which link. Composed by ConnectionManager so every screen agrees.
+        val vehicle = if (connected) state.vehicleInfo else null
+        binding.vehicleText.text = vehicle.orEmpty()
+        binding.vehicleText.visibility = if (vehicle.isNullOrBlank()) View.GONE else View.VISIBLE
 
         // One link at a time: no new connect attempts while one is in flight.
         listOf(
@@ -167,7 +166,19 @@ class ConnectionActivity : AppCompatActivity() {
             .show()
     }
 
-    // --- BLE ---
+    private fun applyGateway(list: List<EnetGateway>) {
+        if (list.size == 1) {
+            selectGateway(list[0])
+            snack("Found ${list[0].label}")
+            return
+        }
+        val labels = list.map { it.label }.toTypedArray()
+        AlertDialog.Builder(this)
+            .setTitle("Gateways on this network")
+            .setItems(labels) { _, which -> selectGateway(list[which]) }
+            .setNegativeButton(android.R.string.cancel, null)
+            .show()
+    }
 
     private fun startScan() {
         if (!scanner.isAvailable) { snack(getString(R.string.conn_enable_bluetooth)); return }
@@ -195,10 +206,13 @@ class ConnectionActivity : AppCompatActivity() {
     }
 
     private fun connectBle(device: BleDevice) {
-        stopScan()
-        val remote = scanner.deviceFor(device.address)
-        if (remote == null) { snack(getString(R.string.conn_device_gone)); return }
-        viewModel.connectObdBle(remote, device.name)
+        // Connecting needs BLUETOOTH_CONNECT on API 31+, which scanning alone does not grant.
+        withPermissions(bleScanPermissions()) {
+            stopScan()
+            val remote = scanner.deviceFor(device.address)
+            if (remote == null) { snack(getString(R.string.conn_device_gone)); return@withPermissions }
+            viewModel.connectObdBle(remote, device.name)
+        }
     }
 
     // --- WiFi OBD ---

@@ -33,6 +33,10 @@ class ConnectionViewModel(app: Application) : AndroidViewModel(app) {
     private val _discovered = MutableLiveData<Event<List<EnetGateway>>>()
     val discovered: LiveData<Event<List<EnetGateway>>> = _discovered
 
+    /** One-off messages for the screen to show, for things the screen cannot know itself. */
+    private val _notice = MutableLiveData<Event<String>>()
+    val notice: LiveData<Event<String>> = _notice
+
     fun connectDemo() {
         viewModelScope.launch {
             ConnectionManager.connectDemo()
@@ -56,9 +60,16 @@ class ConnectionViewModel(app: Application) : AndroidViewModel(app) {
         if (_discovering.value == true) return
         _discovering.value = true
         viewModelScope.launch {
-            val found = withContext(Dispatchers.IO) { EnetDiscovery.discover(getApplication()) }
+            val result = withContext(Dispatchers.IO) {
+                EnetDiscovery.discoverDetailed(getApplication())
+            }
             _discovering.value = false
-            _discovered.value = Event(found)
+            _discovered.value = Event(result.gateways)
+            // A probe that could not even be sent is worth saying out loud: that points at the
+            // phone's network rather than at the car.
+            if (result.gateways.isEmpty() && result.problems.isNotEmpty()) {
+                _notice.value = Event(result.problems.first())
+            }
         }
     }
 

@@ -25,9 +25,9 @@ class ModuleAdapter(
         val item = getItem(position)
         with(holder.binding) {
             moduleIcon.setImageResource(Icons.drawableFor(item.module.iconName))
-            moduleName.text = item.module.name
-            moduleFullName.text = item.module.fullName
-            moduleCount.text = "${item.codingCount} codings"
+            moduleName.text = item.module.fullName
+            moduleFullName.text = item.module.description
+            moduleCount.text = item.codingCount.toString()
             root.setOnClickListener { onClick(item) }
         }
     }

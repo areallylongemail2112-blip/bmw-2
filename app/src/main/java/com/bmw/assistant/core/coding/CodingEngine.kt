@@ -25,7 +25,9 @@ import com.bmw.assistant.data.model.ValueType
  *
  * Every write is verified by reading the block back. If the module holds anything other than
  * what was sent, the original block is written back immediately and the operation fails, so a
- * dropped frame on a cheap OBD adapter cannot leave a half-applied coding in the car.
+ * dropped frame on a cheap OBD adapter cannot leave a half-applied coding in the car. Only once
+ * the bytes are confirmed is the module soft-reset, which is what makes many F-series modules
+ * pick the new coding up.
  */
 class CodingEngine(private val transport: EcuTransport, private val isDemo: Boolean) {
 
@@ -68,25 +70,13 @@ class CodingEngine(private val transport: EcuTransport, private val isDemo: Bool
         val merged = (existing and map.bitMask.inv()) or (rawValue and map.bitMask)
         working[map.byteOffset] = merged.toByte()
 
-        checkRequestLength(map.dataIdentifier, working)
         uds.writeDataByIdentifier(module.diagAddress, map.dataIdentifier, working)
+        // Verify before resetting: a module that has just rebooted cannot answer the read,
+        // and an unverified write is exactly what the read-back exists to catch.
         verifyWrite(module, map.dataIdentifier, expected = working, original = block)
+        // Many F-series modules only pick up a new coding string after a soft reset.
+        runCatching { uds.ecuReset(module.diagAddress) }
         return merged.toByte()
-    }
-
-    /**
-     * Refuses a write the active link cannot carry in one UDS request. A truncated coding block
-     * is the one thing that must never reach a module.
-     */
-    private fun checkRequestLength(dataIdentifier: Int, block: ByteArray) {
-        val requestLength = 3 + block.size // SID + DID(2) + data
-        if (requestLength > transport.maxRequestLength) {
-            throw EcuException(
-                "Coding block 0x%04X is %d bytes; this connection can only send %d-byte requests. ".format(
-                    dataIdentifier, block.size, transport.maxRequestLength
-                ) + "Use an ENET cable or an STN-based adapter."
-            )
-        }
     }
 
     /**
@@ -132,7 +122,6 @@ class CodingEngine(private val transport: EcuTransport, private val isDemo: Bool
             throw EcuException("The active connection cannot write coding data. Use ENET or demo mode.")
         }
         if (block.isEmpty()) throw EcuException("Backup block is empty — nothing to restore.")
-        checkRequestLength(dataIdentifier, block)
         uds.writeDataByIdentifier(module.diagAddress, dataIdentifier, block)
         val readBack = uds.readDataByIdentifier(module.diagAddress, dataIdentifier)
         if (!readBack.contentEquals(block)) {
@@ -142,6 +131,7 @@ class CodingEngine(private val transport: EcuTransport, private val isDemo: Bool
                 )
             )
         }
+        runCatching { uds.ecuReset(module.diagAddress) }
     }
 
     /** Reads the current byte for a coding and decodes it back to a friendly value. */

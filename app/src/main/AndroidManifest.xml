@@ -4,6 +4,7 @@
     <!-- Real ECU coding/diagnostics needs the local network (ENET/HSFZ, DoIP, OBD-WiFi). -->
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
     <!-- Inbound gateway discovery replies are broadcast; many Wi-Fi chipsets filter those
          without a multicast lock. -->
     <uses-permission android:name="android.permission.CHANGE_WIFI_MULTICAST_STATE" />

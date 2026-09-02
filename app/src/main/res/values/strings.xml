@@ -1,7 +1,11 @@
 <resources>
     <string name="app_name">BMW Assistant</string>
     <string name="home_title">What do you want to do?</string>
-    <string name="home_subtitle">Code features or run diagnostics on your BMW F10 (5 Series).</string>
+    <string name="home_subtitle">Code features or run diagnostics on a 2012 BMW F10 (5 Series).</string>
+    <string name="control_units_title">Control units</string>
+    <string name="control_units_heading">Control units</string>
+    <string name="control_units_subtitle">Tap a module to code it. A 2012 F10 uses FRM and JBBF, not FEM/REM.</string>
+    <string name="import_maps">Import verified maps</string>
     <string name="connection_title">Connection</string>
     <string name="demo_mode">Demo Mode</string>
     <string name="scan_ble">Scan for BLE adapters</string>

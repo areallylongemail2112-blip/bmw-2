@@ -4,7 +4,8 @@ One native Android app for **BMW F10 (5 Series)** owners that consolidates two j
 single codebase:
 
 - **Coding** — change what your car does (turn features on/off, adjust values) in plain English,
-  BimmerCode-style. FRM, KOMBI, NBT, HUD, CAS.
+  BimmerCode-style. Control units for a **2012 F10**: ASD, ACSM, IHKA, TRSVC, EGS, FRM (not FEM),
+  Headunit, KOMBI, ICM, JBBF (not REM), FZD, seat module, tailgate, PDC, CAS, HUD, DME.
 - **Diagnostics** — see what your car is doing, BimmerLink-style: read and clear **fault codes
   (DTCs)** and watch **live sensor data** (engine temps, RPM, battery voltage, fuel level…).
 
@@ -47,8 +48,9 @@ Reading fault codes and live data is passive; **clearing** fault codes is a stan
 operation (codes for faults still present return on the next drive cycle) and is allowed on real
 hardware, always behind a confirmation dialog.
 
-To code a real car you must supply maps verified against *your* car's coding data (its FA/VO and
-I-level). See **[Adding / verifying entries](#adding--verifying-entries)**. Always record a
+To code a real car you must import maps verified against *your* car's coding data (its FA/VO and
+I-level) from **Control units → ⋮ → Import verified maps**, or edit the JSON and set
+`"verified": true`. See **[Adding / verifying entries](#adding--verifying-entries)**. Always record a
 module's original bytes before changing them, and keep the battery charged.
 
 ---
@@ -77,7 +79,7 @@ minSdk 26 · targetSdk/compileSdk 34 · Java 17 · single APK.
    └─ src/main/
       ├─ AndroidManifest.xml                      # INTERNET + BLE perms, 7 activities
       ├─ assets/
-      │  ├─ codings_f10.json                      # coding definitions (26 codings / 5 modules)
+      │  ├─ codings_f10.json                      # coding definitions (F10 control units)
       │  └─ diagnostics_f10.json                  # live params + DTC catalog + demo faults
       ├─ res/                                      # layouts, drawables, theme
       └─ java/com/bmw/assistant/
@@ -344,11 +346,12 @@ E-Sys (the module's CAFD/NCD) or a known-good cheat-sheet for your car's I-level
 offset, bit mask, and raw value per option — and set `"verified": true` only once confirmed against
 your specific car. Until then the app writes it in demo mode but refuses it on real hardware.
 
-**Diagnostics:** add a `liveData` entry with the module's real DID/scale/offset, and `dtcCatalog`
-entries for any fault codes you want described in plain English.
+The faster path on a phone is **Control units → ⋮ → Import verified maps**: a JSON file of
+`{ "codings": [ { "id": "frm_cornering_lights", "ecuMap": { ... } } ] }`. Imported maps are marked
+verified so hardware writes are allowed for those ids only.
 
-Definitions are seeded into Room / loaded from the asset on first launch. To pick up JSON changes,
-clear app storage (or bump `AppDatabase` version) so it re-seeds.
+Definitions are seeded into Room from the asset. Bump `assetVersion` in `codings_f10.json` to
+re-seed an existing install (backups are kept).
 
 ---
 

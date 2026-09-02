@@ -49,7 +49,9 @@ data class ConnectionState(
     val supportsCoding: Boolean = false,
     val supportsDiagnostics: Boolean = false,
     /** VIN read from the car after connecting, or null when it could not be identified. */
-    val vin: String? = null
+    val vin: String? = null,
+    /** One line describing the car and link, for the connection bar. */
+    val vehicleInfo: String? = null
 ) {
     val isConnected get() = status == ConnectionStatus.CONNECTED
     val isDemo get() = type == ConnectionType.DEMO
@@ -64,6 +66,8 @@ data class ConnectionState(
  * navigation between the Home hub, coding screens, and diagnostics screens.
  */
 object ConnectionManager {
+
+    private const val VIN_DID = 0xF190
 
     private val _state = MutableLiveData(ConnectionState())
     val state: LiveData<ConnectionState> = _state
@@ -180,11 +184,12 @@ object ConnectionManager {
                     built = t
                     t.connect()
                     transport = t
+                    val vin = identifyVehicle(t)
                     _state.postValue(
                         ConnectionState(
                             type, ConnectionStatus.CONNECTED, label,
                             supportsCoding = t.supportsCoding, supportsDiagnostics = t.supportsDiagnostics,
-                            vin = identifyVehicle(t)
+                            vin = vin, vehicleInfo = describeVehicle(t, type, vin)
                         )
                     )
                 } catch (e: Exception) {
@@ -204,19 +209,31 @@ object ConnectionManager {
      * meaningful for the module they came from, so every backup is stamped with this and a
      * restore onto a different car is refused.
      *
-     * Best effort: it is asked of the gateway first, then the engine controller. A car that
-     * answers neither still connects — it just loses the cross-car guard, and the UI says so.
+     * Best effort, asking each module that commonly holds it in turn. A car that answers none of
+     * them still connects — it just loses the cross-car guard, and the UI says so. Identification
+     * must never be the reason a connection fails.
      */
     private fun identifyVehicle(t: EcuTransport): String? {
-        if (t is DemoTransport) return null
         val client = UdsClient(t)
         for (address in VIN_SOURCES) {
             val vin = runCatching {
                 String(client.readDataByIdentifier(address, Uds.DID_VIN), Charsets.ISO_8859_1)
-            }.getOrNull()?.trim()?.takeIf { it.length == VIN_LENGTH && it.all(Char::isLetterOrDigit) }
+            }.getOrNull()
+                ?.filter { it.isLetterOrDigit() }
+                ?.takeIf { it.length == VIN_LENGTH }
             if (vin != null) return vin
         }
         return null
+    }
+
+    /** One line for the connection bar: which car, over which link. */
+    private fun describeVehicle(t: EcuTransport, type: ConnectionType, vin: String?): String {
+        val link = t.description
+        return when {
+            type == ConnectionType.DEMO -> "Demo 2012 F10 · VIN ${vin ?: DemoTransport.DEMO_VIN}"
+            vin != null -> "VIN $vin · $link"
+            else -> "$link · car did not report a VIN"
+        }
     }
 
     /** Turns a transport failure into one sentence a driver can act on. */
@@ -245,6 +262,25 @@ object ConnectionManager {
         transport = null
         if (t != null) runCatching { t.disconnect() }
         LinkNetwork.release()
+    }
+
+    /**
+     * Best-effort VIN / link description. Identification failure must never fail the connection.
+     */
+    private fun identifyVehicle(t: EcuTransport, type: ConnectionType): String? {
+        if (type == ConnectionType.DEMO) {
+            return "Demo 2012 F10 · VIN ${DemoTransport.DEMO_VIN}"
+        }
+        val uds = UdsClient(t)
+        for (addr in intArrayOf(0x40, 0x10, 0x60)) {
+            val data = runCatching { uds.readDataByIdentifier(addr, VIN_DID) }.getOrNull() ?: continue
+            val vin = String(data, Charsets.ISO_8859_1).filter { it.isLetterOrDigit() }.take(17)
+            if (vin.length == 17) {
+                val link = t.description
+                return "VIN $vin · $link"
+            }
+        }
+        return t.description
     }
 
     /**
@@ -346,11 +382,19 @@ object ConnectionManager {
         }
     }
 
+    private const val CAS_ADDRESS = 0x40
+    private const val KOMBI_ADDRESS = 0x60
     private const val DME_ADDRESS = 0x12
     private const val VIN_LENGTH = 17
 
-    /** Modules asked for the VIN, in order: central gateway first, then the engine controller. */
-    private val VIN_SOURCES = intArrayOf(FramedTcpTransport.ZGW_ADDRESS, DME_ADDRESS)
+    /**
+     * Modules asked for the VIN, in order. On an F-series the car access system (CAS) is the
+     * authoritative holder; the gateway, instrument cluster and engine controller are fallbacks
+     * for cars that do not answer it there.
+     */
+    private val VIN_SOURCES = intArrayOf(
+        CAS_ADDRESS, FramedTcpTransport.ZGW_ADDRESS, KOMBI_ADDRESS, DME_ADDRESS
+    )
 
     private fun encodeForSeed(
         coding: CodingItem,
