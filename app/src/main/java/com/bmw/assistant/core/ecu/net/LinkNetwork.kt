@@ -33,9 +33,15 @@ object LinkNetwork {
     val isAvailable: Boolean get() = network != null
 
     /**
-     * Requests a local Wi-Fi/Ethernet network and waits up to [timeoutMs] for it. Safe to call
-     * repeatedly; a previous request is released first. Never throws — if the request fails the
-     * transports simply fall back to the default network.
+     * Finds a local Wi-Fi/Ethernet network and waits up to [timeoutMs] for it. Safe to call
+     * repeatedly; a previous registration is released first. Never throws — if it fails, the
+     * transports fall back to the default network and behave as they did before.
+     *
+     * This *listens* for a matching network rather than asking the system to bring one up:
+     * `registerNetworkCallback` needs only `ACCESS_NETWORK_STATE`, while `requestNetwork` also
+     * requires `CHANGE_NETWORK_STATE`. The link is already connected by the time the user taps
+     * connect — the phone is on the adapter's Wi-Fi, or the Ethernet dongle is plugged in — so
+     * there is nothing to bring up, only something to find.
      */
     @Synchronized
     fun acquire(context: Context, timeoutMs: Long = ACQUIRE_TIMEOUT_MS) {
@@ -58,14 +64,14 @@ object LinkNetwork {
                 if (network == lost) network = null
             }
         }
-        val ok = runCatching { cm.requestNetwork(request, cb); true }.getOrDefault(false)
+        val ok = runCatching { cm.registerNetworkCallback(request, cb); true }.getOrDefault(false)
         if (!ok) return
         manager = cm
         callback = cb
         runCatching { latch.await(timeoutMs, TimeUnit.MILLISECONDS) }
     }
 
-    /** Drops the request so Android can go back to its normal routing. */
+    /** Drops the registration so Android can go back to its normal routing. */
     @Synchronized
     fun release() {
         val cm = manager
