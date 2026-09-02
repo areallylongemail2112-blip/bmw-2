@@ -164,8 +164,11 @@ Actions):
 | `RELEASE_KEY_PASSWORD` | the key password |
 
 Then push a tag (`git tag v1.0.0 && git push origin v1.0.0`) or run the workflow manually; download
-`app-release.apk` from the run's artifacts. The `release` job fails fast with a clear message if the
-keystore secret is missing.
+`app-release.apk` from the run's artifacts.
+
+If the keystore secrets are not set, the workflow still succeeds: it builds a **debug-signed**
+release APK (installable by sideload) and records a warning on the run. Add the secrets above
+when you want a stable signature that can overwrite previous installs.
 
 **Building a signed release locally** — instead of the CI secrets, drop a git-ignored
 `keystore.properties` in the repo root:
@@ -177,8 +180,9 @@ keyAlias=bmwf10
 keyPassword=…
 ```
 
-Then `./gradlew assembleRelease`. Without any keystore configured, the release build still succeeds
-but is left **unsigned** (installable only via `adb install` for testing).
+Then `./gradlew assembleRelease`. Without any keystore configured, the release APK is still
+**debug-signed** so it can be sideloaded like the debug build. Add `keystore.properties` (or the
+CI secrets) when you need a stable signature that can overwrite previous installs.
 
 ### Try it with no hardware
 

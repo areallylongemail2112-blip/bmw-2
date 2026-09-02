@@ -163,8 +163,13 @@ class DiagnosticsModuleViewModel(app: Application) : AndroidViewModel(app) {
 
     private suspend fun readAllLive() {
         val m = _module.value ?: return
+        val engine = ConnectionManager.diagnosticsEngine()
+        if (engine == null) {
+            emit(NOT_CAPABLE)
+            toggleAutoRefresh(false)
+            return
+        }
         val rows = withContext(Dispatchers.IO) {
-            val engine = ConnectionManager.diagnosticsEngine() ?: return@withContext null
             // Open the extended session once for the whole batch, then read each value without
             // renegotiating it (best-effort: if the open fails, the reads below surface it).
             runCatching { engine.openSession(m) }
@@ -176,11 +181,6 @@ class DiagnosticsModuleViewModel(app: Application) : AndroidViewModel(app) {
                 }
                 LiveRowUi(p.id, p.name, p.description, text)
             }
-        }
-        if (rows == null) {
-            emit(NOT_CAPABLE)
-            toggleAutoRefresh(false)
-            return
         }
         _liveRows.postValue(rows)
     }
