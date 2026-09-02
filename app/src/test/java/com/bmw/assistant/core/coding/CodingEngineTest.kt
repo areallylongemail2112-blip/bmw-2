@@ -173,6 +173,110 @@ class CodingEngineTest {
         assertTrue(ex.message!!.contains("Multi-byte"))
     }
 
+    // --- write verification (added after the transport audit) ---
+
+    /**
+     * A transport that drops the last byte of every coding write, the way a cheap OBD dongle
+     * corrupts a multi-frame transfer. The engine must notice on read-back.
+     */
+    private class LossyTransport(
+        private val delegate: FakeTransport = FakeTransport(),
+        override val maxRequestLength: Int = 4095
+    ) : com.bmw.assistant.core.ecu.EcuTransport {
+        override val isConnected get() = delegate.isConnected
+        override val supportsCoding get() = delegate.supportsCoding
+        override val supportsDiagnostics get() = delegate.supportsDiagnostics
+        var writesSeen = 0
+            private set
+
+        fun seed(diagAddress: Int, did: Int, data: ByteArray) = delegate.putCoding(diagAddress, did, data)
+        fun read(diagAddress: Int, did: Int) = delegate.getCoding(diagAddress, did)
+
+        override fun connect() = delegate.connect()
+        override fun disconnect() = delegate.disconnect()
+
+        override fun transceive(diagAddress: Int, request: ByteArray): ByteArray {
+            if ((request[0].toInt() and 0xFF) == 0x2E) {
+                writesSeen++
+                // First write is corrupted; the rollback write is honoured.
+                if (writesSeen == 1) {
+                    val corrupted = request.copyOf()
+                    corrupted[corrupted.size - 1] = (corrupted[corrupted.size - 1] + 1).toByte()
+                    return delegate.transceive(diagAddress, corrupted)
+                }
+            }
+            return delegate.transceive(diagAddress, request)
+        }
+    }
+
+    @Test
+    fun applyCoding_verifiesTheWriteByReadingTheBlockBack() {
+        val transport = FakeTransport()
+        transport.putCoding(0x72, 0x3000, byteArrayOf(0x00, 0x00, 0x00, 0x00))
+        val engine = CodingEngine(transport, isDemo = true)
+        val item = coding(
+            ValueType.INTEGER,
+            EcuMap(dataIdentifier = 0x3000, byteOffset = 1, bitMask = 0xFF, verified = true)
+        )
+
+        engine.applyCoding(module, item, "9")
+
+        assertArrayEquals(byteArrayOf(0x00, 0x09, 0x00, 0x00), transport.getCoding(0x72, 0x3000))
+    }
+
+    @Test
+    fun applyCoding_restoresTheOriginalBlockWhenTheWriteDoesNotStick() {
+        val original = byteArrayOf(0x11, 0x22, 0x33, 0x44)
+        val transport = LossyTransport()
+        transport.seed(0x72, 0x3000, original)
+        val engine = CodingEngine(transport, isDemo = true)
+        val item = coding(
+            ValueType.INTEGER,
+            EcuMap(dataIdentifier = 0x3000, byteOffset = 0, bitMask = 0xFF, verified = true)
+        )
+
+        val error = assertThrows(EcuException::class.java) {
+            engine.applyCoding(module, item, "200")
+        }
+
+        assertTrue(error.message!!.contains("Verification failed"))
+        assertTrue(error.message!!.contains("original coding was restored"))
+        assertArrayEquals(original, transport.read(0x72, 0x3000))
+    }
+
+    @Test
+    fun applyCoding_refusesABlockLargerThanTheLinkCanCarry() {
+        // A plain single-frame-only link: 3 header bytes leave no room for an 8-byte block.
+        val transport = LossyTransport(maxRequestLength = 6)
+        transport.seed(0x72, 0x3000, ByteArray(8))
+        val engine = CodingEngine(transport, isDemo = true)
+        val item = coding(
+            ValueType.INTEGER,
+            EcuMap(dataIdentifier = 0x3000, byteOffset = 0, bitMask = 0xFF, verified = true)
+        )
+
+        val error = assertThrows(EcuException::class.java) {
+            engine.applyCoding(module, item, "1")
+        }
+
+        assertTrue(error.message!!.contains("cannot carry"))
+        // Nothing was written: the block is untouched.
+        assertArrayEquals(ByteArray(8), transport.read(0x72, 0x3000))
+    }
+
+    @Test
+    fun restoreBlock_verifiesTheRestoredBytes() {
+        val transport = LossyTransport()
+        transport.seed(0x72, 0x3000, byteArrayOf(0x01, 0x02, 0x03, 0x04))
+        val engine = CodingEngine(transport, isDemo = true)
+
+        val error = assertThrows(EcuException::class.java) {
+            engine.restoreBlock(module, 0x3000, byteArrayOf(0x09, 0x08, 0x07, 0x06))
+        }
+
+        assertTrue(error.message!!.contains("does not match the backup"))
+    }
+
     @Test
     fun applyCoding_softResetsModule() {
         val transport = FakeTransport()

@@ -1,15 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-  ENET/DoIP and OBD-WiFi adapters live on the local network and use plain (non-TLS) links.
-  DoIP itself is a raw TCP socket (not affected by this policy), but we still permit cleartext
-  to the common private ranges so any HTTP-based adapter tooling works too.
+  Every link this app opens is a raw TCP or UDP socket on a private local network: HSFZ on 6801,
+  DoIP on 13400, an ELM327 dongle on 35000. Raw sockets are not governed by this policy at all,
+  and the app makes no HTTP requests, so cleartext is permitted only so that a future local
+  adapter web endpoint would work. There is no traffic to any public host.
 -->
 <network-security-config>
-    <domain-config cleartextTrafficPermitted="true">
-        <domain includeSubdomains="true">192.168.0.0</domain>
-        <domain includeSubdomains="true">192.168.1.0</domain>
-        <domain includeSubdomains="true">169.254.0.0</domain>
-        <domain includeSubdomains="true">10.0.0.0</domain>
-    </domain-config>
-    <base-config cleartextTrafficPermitted="true" />
+    <base-config cleartextTrafficPermitted="true">
+        <trust-anchors>
+            <certificates src="system" />
+        </trust-anchors>
+    </base-config>
 </network-security-config>

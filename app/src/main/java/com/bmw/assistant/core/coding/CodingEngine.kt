@@ -22,6 +22,12 @@ import com.bmw.assistant.data.model.ValueType
  * coding item carries a `verified` map. The illustrative maps bundled in the JSON asset are
  * for demo only; pushing an unverified byte offset to a real module can brick it. Demo mode
  * bypasses the gate because nothing physical is touched.
+ *
+ * Every write is verified by reading the block back. If the module holds anything other than
+ * what was sent, the original block is written back immediately and the operation fails, so a
+ * dropped frame on a cheap OBD adapter cannot leave a half-applied coding in the car. Only once
+ * the bytes are confirmed is the module soft-reset, which is what makes many F-series modules
+ * pick the new coding up.
  */
 class CodingEngine(private val transport: EcuTransport, private val isDemo: Boolean) {
 
@@ -65,9 +71,31 @@ class CodingEngine(private val transport: EcuTransport, private val isDemo: Bool
         working[map.byteOffset] = merged.toByte()
 
         uds.writeDataByIdentifier(module.diagAddress, map.dataIdentifier, working)
+        // Verify before resetting: a module that has just rebooted cannot answer the read,
+        // and an unverified write is exactly what the read-back exists to catch.
+        verifyWrite(module, map.dataIdentifier, expected = working, original = block)
         // Many F-series modules only pick up a new coding string after a soft reset.
         runCatching { uds.ecuReset(module.diagAddress) }
         return merged.toByte()
+    }
+
+    /**
+     * Reads the block back after a write and compares it with what was sent. On a mismatch the
+     * [original] bytes are restored (best effort) and an [EcuException] is raised.
+     */
+    private fun verifyWrite(module: Module, dataIdentifier: Int, expected: ByteArray, original: ByteArray) {
+        val readBack = uds.readDataByIdentifier(module.diagAddress, dataIdentifier)
+        if (readBack.contentEquals(expected)) return
+        val restored = runCatching {
+            uds.writeDataByIdentifier(module.diagAddress, dataIdentifier, original)
+            uds.readDataByIdentifier(module.diagAddress, dataIdentifier).contentEquals(original)
+        }.getOrDefault(false)
+        throw EcuException(
+            "Verification failed: module 0x%02X block 0x%04X does not hold the written bytes. ".format(
+                module.diagAddress, dataIdentifier
+            ) + if (restored) "The original coding was restored."
+            else "Restoring the original coding also failed — restore it from Backups before driving."
+        )
     }
 
     /**
@@ -95,6 +123,14 @@ class CodingEngine(private val transport: EcuTransport, private val isDemo: Bool
         }
         if (block.isEmpty()) throw EcuException("Backup block is empty — nothing to restore.")
         uds.writeDataByIdentifier(module.diagAddress, dataIdentifier, block)
+        val readBack = uds.readDataByIdentifier(module.diagAddress, dataIdentifier)
+        if (!readBack.contentEquals(block)) {
+            throw EcuException(
+                "Verification failed: module 0x%02X block 0x%04X does not match the backup after restore.".format(
+                    module.diagAddress, dataIdentifier
+                )
+            )
+        }
         runCatching { uds.ecuReset(module.diagAddress) }
     }
 

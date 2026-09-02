@@ -2,6 +2,8 @@
 <androidx.coordinatorlayout.widget.CoordinatorLayout
     xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    tools:context=".feature.connection.ConnectionActivity"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="@color/background">
@@ -65,7 +67,7 @@
                             android:layout_width="0dp"
                             android:layout_height="wrap_content"
                             android:layout_weight="1"
-                            android:text="Not connected"
+                            android:text="@string/conn_status_disconnected"
                             android:textColor="@color/on_primary"
                             android:textStyle="bold" />
                     </LinearLayout>
@@ -94,24 +96,24 @@
             <!-- Demo mode -->
             <TextView style="@style/CardTitle" android:layout_width="wrap_content"
                 android:layout_height="wrap_content" android:layout_marginTop="20dp"
-                android:text="Demo mode" />
+                android:text="@string/conn_demo_title" />
             <TextView style="@style/CardBody" android:layout_width="match_parent"
                 android:layout_height="wrap_content" android:layout_marginTop="2dp"
-                android:text="Try the whole app with no hardware. Coding, fault codes and live data are simulated against a virtual F10." />
+                android:text="@string/conn_demo_body" />
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/demoButton"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="8dp"
-                android:text="Start demo mode" />
+                android:text="@string/conn_demo_start" />
 
             <!-- ENET -->
             <TextView style="@style/CardTitle" android:layout_width="wrap_content"
                 android:layout_height="wrap_content" android:layout_marginTop="24dp"
-                android:text="ENET cable or ENET-WiFi adapter" />
+                android:text="@string/conn_enet_title" />
             <TextView style="@style/CardBody" android:layout_width="match_parent"
                 android:layout_height="wrap_content" android:layout_marginTop="2dp"
-                android:text="Fastest and most reliable path for coding. Plug the ENET cable into the OBD port and the phone (USB-C Ethernet adapter), or join the ENET-WiFi adapter\u2019s network, switch the ignition on, then tap Find car. A 2012 F10 gateway speaks HSFZ on port 6801." />
+                android:text="@string/conn_enet_body" />
 
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/discoverButton"
@@ -119,19 +121,19 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="8dp"
-                android:text="Find car on network" />
+                android:text="@string/conn_discover" />
 
             <com.google.android.material.textfield.TextInputLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="8dp"
-                android:hint="Gateway IP">
+                android:hint="@string/conn_gateway_ip_hint">
                 <com.google.android.material.textfield.TextInputEditText
                     android:id="@+id/ipInput"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:inputType="text"
-                    android:text="192.168.0.10" />
+                    android:imeOptions="actionDone" />
             </com.google.android.material.textfield.TextInputLayout>
 
             <com.google.android.material.button.MaterialButtonToggleGroup
@@ -149,7 +151,7 @@
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
-                    android:text="HSFZ \u00b7 6801 (F10)" />
+                    android:text="@string/conn_proto_hsfz" />
 
                 <com.google.android.material.button.MaterialButton
                     android:id="@+id/protoDoip"
@@ -157,7 +159,7 @@
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
-                    android:text="DoIP \u00b7 13400" />
+                    android:text="@string/conn_proto_doip" />
             </com.google.android.material.button.MaterialButtonToggleGroup>
 
             <com.google.android.material.button.MaterialButton
@@ -165,15 +167,15 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="8dp"
-                android:text="Connect over ENET" />
+                android:text="@string/conn_enet_connect" />
 
             <!-- OBD adapters -->
             <TextView style="@style/CardTitle" android:layout_width="wrap_content"
                 android:layout_height="wrap_content" android:layout_marginTop="24dp"
-                android:text="OBD adapter (Bluetooth, BLE or WiFi)" />
+                android:text="@string/conn_obd_title" />
             <TextView style="@style/CardBody" android:layout_width="match_parent"
                 android:layout_height="wrap_content" android:layout_marginTop="2dp"
-                android:text="ELM327/STN-based dongles (vLinker, OBDLink, UniCarScan, generic ELM327 v1.5). The app speaks BMW\u2019s extended-addressed UDS on the D-CAN bus, so coding and diagnostics both work. Slower than ENET; an STN-chip adapter is recommended for coding writes." />
+                android:text="@string/conn_obd_body" />
 
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/btPairedButton"
@@ -181,7 +183,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="8dp"
-                android:text="Bluetooth \u2013 choose paired adapter" />
+                android:text="@string/conn_bt_paired" />
 
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/scanButton"
@@ -196,7 +198,8 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="4dp"
-                android:nestedScrollingEnabled="false" />
+                android:nestedScrollingEnabled="false"
+                tools:listitem="@layout/item_ble_device" />
 
             <LinearLayout
                 android:layout_width="match_parent"
@@ -208,7 +211,7 @@
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_weight="2"
-                    android:hint="WiFi adapter IP">
+                    android:hint="@string/conn_wifi_ip_hint">
                     <com.google.android.material.textfield.TextInputEditText
                         android:id="@+id/wifiIpInput"
                         android:layout_width="match_parent"
@@ -222,7 +225,7 @@
                     android:layout_height="wrap_content"
                     android:layout_marginStart="8dp"
                     android:layout_weight="1"
-                    android:hint="Port">
+                    android:hint="@string/conn_wifi_port_hint">
                     <com.google.android.material.textfield.TextInputEditText
                         android:id="@+id/wifiPortInput"
                         android:layout_width="match_parent"
@@ -236,11 +239,11 @@
                 android:id="@+id/wifiObdButton"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="Connect WiFi OBD adapter" />
+                android:text="@string/conn_wifi_connect" />
 
             <TextView style="@style/CardBody" android:layout_width="match_parent"
                 android:layout_height="wrap_content" android:layout_marginTop="20dp"
-                android:text="Tip: keep the ignition on (engine off) for coding, and connect a battery charger for long sessions. The app backs up each coding block before writing and verifies every write by reading it back." />
+                android:text="@string/conn_tip" />
         </LinearLayout>
     </androidx.core.widget.NestedScrollView>
 </androidx.coordinatorlayout.widget.CoordinatorLayout>

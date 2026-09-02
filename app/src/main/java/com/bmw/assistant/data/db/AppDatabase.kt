@@ -14,7 +14,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         CodingValueEntity::class,
         CodingBackupEntity::class
     ],
-    version = 4,
+    version = 5,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -42,15 +42,27 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        /**
+         * v5 stamps each backup with the VIN it was read from, so a snapshot can never be
+         * restored into a different car. Migrated rather than wiped: a backup is the only copy
+         * of a module's original coding bytes, and losing one loses the way back.
+         */
+        private val MIGRATION_4_5 = object : Migration(4, 5) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE `coding_backups` ADD COLUMN `vin` TEXT")
+            }
+        }
+
         fun get(context: Context): AppDatabase =
             instance ?: synchronized(this) {
                 instance ?: Room.databaseBuilder(
                     context.applicationContext,
                     AppDatabase::class.java,
                     "bmw_assistant.db"
-                ).addMigrations(MIGRATION_1_2)
-                    // Older sideloads (and the product-improvements experiment) used schema 3.
-                    // Definitions are always re-seeded from JSON, so a wipe is safer than a crash.
+                ).addMigrations(MIGRATION_1_2, MIGRATION_4_5)
+                    // Older sideloads (and the product-improvements experiment) used schemas 2–4
+                    // with no migration path. Definitions are always re-seeded from JSON, so a
+                    // wipe is safer than a crash on launch.
                     .fallbackToDestructiveMigration()
                     .fallbackToDestructiveMigrationOnDowngrade()
                     .build().also { instance = it }

@@ -31,20 +31,22 @@ class CodingRepository private constructor(
 ) {
     private val gson = Gson()
 
-    /** Seed (or re-seed) the database from the bundled JSON when empty or when the asset version bumps. */
+    /**
+     * Seeds (or re-seeds) module/coding definitions from the bundled JSON asset whenever the
+     * asset's `assetVersion` is newer than the one last written to the database, so an app
+     * update actually delivers corrected maps to existing installs instead of only to fresh
+     * ones. Values and backups are kept — they are keyed by coding id, not by row.
+     */
     suspend fun ensureSeeded() = withContext(Dispatchers.IO) {
+        val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
         val data = CodingAssetLoader.load(context)
-        val stored = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
-            .getInt(KEY_ASSET_VERSION, 0)
+        val stored = prefs.getInt(KEY_ASSET_VERSION, 0)
         if (dao.moduleCount() > 0 && stored >= data.assetVersion) return@withContext
         dao.deleteAllCodings()
         dao.deleteAllModules()
         dao.insertModules(data.modules.map { it.toEntity() })
         dao.insertCodings(data.codings.map { it.toEntity() })
-        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
-            .edit()
-            .putInt(KEY_ASSET_VERSION, data.assetVersion)
-            .apply()
+        prefs.edit().putInt(KEY_ASSET_VERSION, data.assetVersion).apply()
     }
 
     /**
@@ -122,7 +124,8 @@ class CodingRepository private constructor(
         blockHex: String,
         label: String,
         source: BackupSource,
-        connectionLabel: String?
+        connectionLabel: String?,
+        vin: String? = null
     ): Boolean = withContext(Dispatchers.IO) {
         val latest = dao.latestBackupForBlock(module.id, dataIdentifier, source.name)
         if (latest?.blockHex == blockHex) return@withContext false
@@ -136,7 +139,8 @@ class CodingRepository private constructor(
                 label = label,
                 source = source.name,
                 connectionLabel = connectionLabel,
-                createdAt = System.currentTimeMillis()
+                createdAt = System.currentTimeMillis(),
+                vin = vin
             )
         )
         true
@@ -160,7 +164,8 @@ class CodingRepository private constructor(
         label = label,
         source = runCatching { BackupSource.valueOf(source) }.getOrDefault(BackupSource.DEMO),
         connectionLabel = connectionLabel,
-        createdAt = createdAt
+        createdAt = createdAt,
+        vin = vin
     )
 
     private fun Module.toEntity() =

@@ -9,8 +9,9 @@ single codebase:
 - **Diagnostics** — see what your car is doing, BimmerLink-style: read and clear **fault codes
   (DTCs)** and watch **live sensor data** (engine temps, RPM, battery voltage, fuel level…).
 
-Everything runs fully offline in a **demo mode**, and against a real car over **ENET (HSFZ on a
-2012 F10)** or an **ELM327/STN OBD adapter** (Bluetooth, BLE, or WiFi).
+Everything runs fully offline in a **demo mode**, and against a real car over an **ENET** cable or
+WiFi adapter (HSFZ on a 2012 F10, DoIP on newer gateways) or an **ELM327/STN OBD dongle** over
+Bluetooth, BLE or WiFi.
 
 > **This is the one folder for all our BMW Android app code.** Earlier attempts (an Expo/React
 > Native prototype and a coding-only native app) have been folded into this single app. There is
@@ -18,6 +19,7 @@ Everything runs fully offline in a **demo mode**, and against a real car over **
 > diagnostics) sharing one transport/UDS core.
 
 - **Phase 1 research / knowledge base:** [`docs/BMW_CODING_KNOWLEDGE_BASE.md`](docs/BMW_CODING_KNOWLEDGE_BASE.md)
+- **Transport audit (2 Sep 2026), including what is still open:** [`docs/AUDIT_2026-09-02.md`](docs/AUDIT_2026-09-02.md)
 
 ### A note on BimmerCode / BimmerLink / BimmerTool
 
@@ -60,12 +62,12 @@ module's original bytes before changing them, and keep the battery charged.
 | Language / UI | **Kotlin + Views + ViewBinding** (no Compose) | Lightweight; keeps the focus on the transport layer. |
 | Pattern | **MVVM** | ViewModels own state and enforce the connection guard so no screen can write/read without a live link. |
 | Persistence | **Room** (coding) + **in-memory** (diagnostics defs) | Coding modules/values are stored locally and offline; diagnostics definitions are read-only, loaded from a JSON asset. |
-| Transport | **`EcuTransport.transceive(diagAddress, udsRequest)`** | A dumb UDS pipe. Demo, ENET HSFZ (TCP 6801), ENET DoIP (TCP 13400), ELM327 over BT/BLE/WiFi. |
+| Transport | **`EcuTransport.transceive(diagAddress, udsRequest)`** | A dumb UDS pipe. `DemoTransport` (offline sim), `EnetHsfzTransport` (HSFZ 6801 — the F10 path), `EnetDoipTransport` (DoIP 13400), `Elm327Transport` (OBD dongles over Bluetooth/BLE/WiFi). The two ENET transports share `FramedTcpTransport`, which owns framing, response correlation and timeouts. |
 | Protocol | **`UdsClient`** | One place that sequences sessions and turns negative responses into readable errors. Both engines build on it. |
 | Coding | **`CodingEngine`** | Read-modify-write of one coding byte, with the verified-map safety gate. |
 | Diagnostics | **`DiagnosticsEngine`** | Fault read/clear (UDS 0x19/0x14) and live-value read/decode (UDS 0x22). |
 
-minSdk 26 · targetSdk/compileSdk 34 · Java 17 · single APK.
+minSdk 26 · targetSdk/compileSdk 36 · Java 17 · single APK.
 
 ### Project layout
 
@@ -88,11 +90,15 @@ minSdk 26 · targetSdk/compileSdk 34 · Java 17 · single APK.
          │  │  ├─ UdsClient.kt                     # session + RDBI/WDBI/ReadDTC/ClearDTC helpers
          │  │  ├─ ConnectionManager.kt             # app-scoped connection state (singleton)
          │  │  ├─ DemoTransport.kt                 # offline simulation (coding + diagnostics)
-         │  │  ├─ EnetHsfzTransport.kt             # 2012 F10 ENET (HSFZ TCP 6801)
-         │  │  ├─ EnetDoipTransport.kt             # ENET/DoIP TCP 13400
-         │  │  ├─ EnetDiscovery.kt                 # UDP find-car (HSFZ 6811 / DoIP 13400)
+         │  │  ├─ FramedTcpTransport.kt             # shared ENET machinery (framing, correlation)
+         │  │  ├─ FrameReader.kt                    # timeout-safe framed socket reader
+         │  │  ├─ EnetHsfzTransport.kt              # HSFZ on TCP 6801 (F-series, incl. F10)
+         │  │  ├─ EnetDoipTransport.kt              # DoIP on TCP 13400 (G-series / late F)
+         │  │  ├─ EnetDiscovery.kt                  # UDP gateway discovery (6811 / 13400)
+         │  │  ├─ TesterPresentKeepAlive.kt         # 0x3E pump so sessions don't lapse
          │  │  ├─ Hex.kt
-         │  │  ├─ uds/{Uds.kt, Doip.kt, Hsfz.kt, Dtc.kt}
+         │  │  ├─ net/LinkNetwork.kt                # pins sockets to the internet-less ENET link
+         │  │  ├─ uds/{Uds.kt, Hsfz.kt, Doip.kt, Dtc.kt}
          │  │  ├─ obd/{Elm327Transport.kt, IsoTp.kt, SerialLink.kt}
          │  │  └─ ble/BleScanner.kt
          │  ├─ coding/CodingEngine.kt              # value <-> byte encode/decode + safety gate
@@ -106,16 +112,16 @@ minSdk 26 · targetSdk/compileSdk 34 · Java 17 · single APK.
          │  ├─ home/HomeActivity.kt                # the hub: Coding · Diagnostics · Connection
          │  └─ common/                             # ConnectionBadge, Icons, Event
          └─ feature/
-            ├─ coding/       (control-unit list → coding list → edit)
-            ├─ diagnostics/  (module list → faults + live data)
-            └─ connection/   (demo / ENET HSFZ·DoIP / OBD BT·BLE·WiFi)
+            ├─ coding/       (module grid → coding list → edit)
+            ├─ diagnostics/  (module grid → faults + live data)
+            └─ connection/   (demo / ENET / Bluetooth / BLE / WiFi OBD)
 ```
 
 ---
 
 ## Building
 
-Requirements: JDK 17 and the Android SDK (platform 34). Point Gradle at your SDK with a
+Requirements: JDK 17 and the Android SDK (platform 36). Point Gradle at your SDK with a
 `local.properties` file in the repo root:
 
 ```
@@ -233,27 +239,44 @@ connection is live.
 Connection screen → **Start demo mode**. Coding, faults, and live data are all simulated; safe for
 development and demos.
 
-### ENET — the coding + diagnostics path (preferred)
+### ENET cable or ENET-WiFi adapter — the fastest, most reliable path
 
-A **2012 F10 gateway speaks HSFZ on TCP 6801**, not DoIP 13400. DoIP is offered for later cars.
+A **2012 F10 gateway speaks HSFZ on TCP 6801**, not DoIP 13400. DoIP is offered as a second option
+for G-series and late F-series gateways.
 
-1. Connect the car to the phone over an **ENET cable** (OBD-II ↔ USB-C Ethernet; a plain patch
-   cable will **not** work — see the knowledge base §3.1) or join an ENET-WiFi adapter network.
-2. Switch the ignition on. Connection screen → **Find car on network** (or type `192.168.0.10`).
-3. Leave **HSFZ · 6801 (F10)** selected and tap **Connect over ENET**.
-4. The app frames UDS in HSFZ (or DoIP if you picked that), then addresses each module by its
-   diagnostic address.
+1. Connect the car to your phone over an **ENET cable** (OBD-II ↔ RJ45 with the gateway activation
+   wiring — a plain patch cable will **not** work, see the knowledge base §3.1) plus a USB-C
+   Ethernet adapter, or join the ENET-WiFi adapter's network.
+2. Switch the ignition on.
+3. Connection screen → **Find car on network**. The app broadcasts an HSFZ identification request
+   on UDP 6811 and a DoIP vehicle-identification request on UDP 13400, then fills in the address
+   and protocol of whatever answers. Enter the IP by hand only if discovery finds nothing.
+4. **Connect over ENET.**
+
+The app pins its sockets to the ENET link. That matters: an ENET network has no internet, so
+Android keeps cellular as the default route and an unpinned socket never reaches the car.
 
 > Coding writes still require `verified: true` maps — see below.
 
-### OBD adapter (Bluetooth, BLE, or WiFi)
+### OBD adapter — Bluetooth, BLE or WiFi
 
-ELM327 / STN dongles (vLinker, OBDLink, UniCarScan, generic v1.5) speak BMW extended-addressed
-UDS on D-CAN. Coding and diagnostics both work; an STN chip is recommended for writes.
+ELM327/STN dongles (vLinker, OBDLink, UniCarScan, generic ELM327 v1.5) reach the modules over
+BMW's extended-addressed UDS on the D-CAN bus: tester CAN id `0x6F1`, each module answering on
+`0x600 + its diagnostic address`, with the extended-address byte first in every frame. The adapter
+is put in raw CAN mode (`ATCAF0`/`ATCFC0`) and the app does ISO-TP segmentation, flow control and
+8-byte padding itself.
 
-- **Bluetooth** — pair the adapter in Android settings, then **Bluetooth – choose paired adapter**.
-- **BLE** — **Scan for BLE adapters** and tap the dongle.
-- **WiFi** — join the adapter hotspot, enter IP/port (default `192.168.0.10:35000`), **Connect WiFi OBD adapter**.
+- **Bluetooth Classic** — pair the adapter in Android's Bluetooth settings first, then Connection
+  screen → **Bluetooth – choose paired adapter**.
+- **BLE** — Connection screen → **Scan for BLE adapters** → tap yours. Nordic UART, FFE0 and FFF0
+  serial profiles are all supported.
+- **WiFi** — join the dongle's network, then enter its address (usually `192.168.0.10:35000`).
+
+Coding and diagnostics both work over an OBD dongle, and both go through the same `verified: true`
+gate as ENET. Two caveats: a dongle is much slower than ENET (a 150-byte coding block is roughly 25
+CAN frames each way), and cheap clones drop frames under load. Every coding write is read back and
+compared, so a corrupted transfer is reported and rolled back rather than silently kept — but an
+STN-based adapter is strongly recommended for writes.
 
 ---
 
@@ -343,15 +366,29 @@ re-seed an existing install (backups are kept).
   of one byte, leaving the rest untouched.
 - **Capability-gated transports** — a transport that can't do coding or diagnostics says so, and the
   UI routes around it instead of sending bytes it can't handle.
+- **Every write is verified** — after a coding write the block is read back and compared. On a
+  mismatch the original bytes are written back and the operation fails loudly.
+- **Oversized writes refused** — a block that will not fit in one request on the active link is
+  rejected rather than truncated on the wire (`EcuTransport.maxRequestLength`).
+- **Responses are correlated to requests** — a transport only returns a frame that is the answer to
+  the request in flight, from the module it was addressed to, and `UdsClient` additionally checks
+  the identifier echoed in a `0x62`/`0x6E` reply. A stale answer can never be read as the contents
+  of a different coding block.
+- **Backups are bound to a car** — each snapshot records the VIN it was read from, and a restore
+  onto a different VIN is refused. The database is excluded from cloud backup and device transfer.
+- **One-time disclaimer** — the app is unusable until the safety notice has been acknowledged.
 
 ---
 
 ## Notes / limitations
 
 - The bundled coding maps and diagnostics DIDs are illustrative; treat them as templates, not truth.
-- A 2012 F10 uses **HSFZ** (not DoIP) on ENET. `EnetHsfzTransport` is the default. `EnetDoipTransport`
-  is for later gateways. ELM327 adapters use software ISO-TP on D-CAN (`Elm327Transport`).
-- Some modules additionally require **SecurityAccess (0x27)** before a coding write; the app does
-  not ship a BMW seed-to-key algorithm.
+- **No hardware validation yet.** The transports are covered by unit tests against scripted
+  gateways and adapters, but nothing in this repository has been exercised against a real F10. Treat
+  the first session with a car as a test, starting with read-only diagnostics.
+- **SecurityAccess (0x27) is not implemented.** Modules that demand a seed/key exchange before a
+  coding write will answer `0x33` (security access denied) and the write will fail cleanly. Adding
+  it is the next step for those modules.
+- **No ECU reset after a write.** Some modules only apply new coding after `0x11` or a power cycle.
 - This app does **coding and diagnostics only** — it never programs or flashes firmware.
 - Live-data DIDs are read one at a time; the demo transport adds mild jitter so gauges look alive.

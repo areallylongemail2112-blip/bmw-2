@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Coding backups are raw bytes read out of one specific car's modules. Restoring them onto a
+  different car (or a rebuilt phone paired with a different car) is never correct, so the app's
+  database is excluded from both cloud backup and device-to-device transfer. `allowBackup` is
+  false as well; this file makes the intent explicit on Android 12+.
+-->
+<data-extraction-rules>
+    <cloud-backup>
+        <exclude domain="database" path="." />
+        <exclude domain="sharedpref" path="." />
+    </cloud-backup>
+    <device-transfer>
+        <exclude domain="database" path="." />
+        <exclude domain="sharedpref" path="." />
+    </device-transfer>
+</data-extraction-rules>

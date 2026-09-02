@@ -58,7 +58,9 @@ data class CodingValueEntity(
 /**
  * Room copy of a [com.bmw.assistant.data.model.CodingBackup]: the raw bytes of one module
  * coding block captured before a write, so the exact original data can be restored.
- * [source] is the [com.bmw.assistant.data.model.BackupSource] name (DEMO / HARDWARE).
+ * [source] is the [com.bmw.assistant.data.model.BackupSource] name (DEMO / HARDWARE), and
+ * [vin] identifies the car the bytes came from so they can never be restored into a different
+ * one. Null for demo snapshots and for cars that did not answer the VIN request.
  */
 @Entity(tableName = "coding_backups")
 data class CodingBackupEntity(
@@ -71,5 +73,6 @@ data class CodingBackupEntity(
     val label: String,
     val source: String,
     val connectionLabel: String?,
-    val createdAt: Long
+    val createdAt: Long,
+    val vin: String? = null
 )

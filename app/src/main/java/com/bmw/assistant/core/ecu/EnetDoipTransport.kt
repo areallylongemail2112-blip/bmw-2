@@ -1,163 +1,105 @@
 package com.bmw.assistant.core.ecu
 
 import com.bmw.assistant.core.ecu.uds.Doip
-import com.bmw.assistant.core.ecu.uds.Uds
-import java.io.InputStream
-import java.io.OutputStream
-import java.net.InetSocketAddress
-import java.net.Socket
 import java.net.SocketTimeoutException
 
 /**
- * ENET / DoIP (ISO 13400) transport on TCP 13400. This is the framing used by G-series
- * gateways and some late F-series I-levels; a 2012 F10 uses [EnetHsfzTransport] instead. Kept
- * as a selectable option so the app also works on newer cars and DoIP-speaking ENET adapters.
+ * ENET / DoIP (ISO 13400) transport on TCP 13400. This is the framing used by G-series gateways
+ * and some late F-series I-levels; a 2012 F10 uses [EnetHsfzTransport] instead. Kept as a
+ * selectable option so the app also works on newer cars and DoIP-speaking ENET adapters.
  *
  * Connection sequence:
- *   1. TCP connect to the gateway (default 192.168.0.10:13400) — or the address found by
+ *   1. TCP connect to the gateway (default 192.168.0.10:13400), or the address found by
  *      [EnetDiscovery].
  *   2. DoIP routing activation handshake.
- * Per request ([transceive]): the UDS bytes are wrapped in a DoIP diagnostic-message frame
- * addressed to the target module; transport acks, gateway alive checks and UDS "response
- * pending" (0x78) are absorbed.
+ *
+ * Per request the UDS bytes go out in a diagnostic-message frame; transport acks, alive checks
+ * and "response pending" are absorbed by [FramedTcpTransport].
  */
 class EnetDoipTransport(
-    private val host: String,
-    private val port: Int = Doip.PORT,
-    private val connectTimeoutMs: Int = 4000,
-    private val readTimeoutMs: Int = 5000,
-    private val pendingTimeoutMs: Int = 30_000
-) : EcuTransport {
+    host: String,
+    port: Int = Doip.PORT,
+    connectTimeoutMs: Int = DEFAULT_CONNECT_TIMEOUT_MS,
+    readTimeoutMs: Int = DEFAULT_READ_TIMEOUT_MS,
+    pendingTimeoutMs: Int = DEFAULT_PENDING_TIMEOUT_MS
+) : FramedTcpTransport(host, port, connectTimeoutMs, readTimeoutMs, pendingTimeoutMs) {
 
-    private var socket: Socket? = null
-    private var input: InputStream? = null
-    private var output: OutputStream? = null
-    private val lock = Any()
-    private val keepAlive = TesterPresentKeepAlive { addr, req -> rawTransceive(addr, req) }
-
-    override val isConnected: Boolean get() = socket?.isConnected == true && socket?.isClosed == false
     override val supportsCoding: Boolean get() = true
     override val supportsDiagnostics: Boolean get() = true
     override val description: String get() = "ENET (DoIP) $host:$port"
 
-    override fun connect() {
-        val s = Socket()
-        try {
-            s.tcpNoDelay = true
-            s.connect(InetSocketAddress(host, port), connectTimeoutMs)
-            s.soTimeout = readTimeoutMs
-            val inp = s.getInputStream()
-            val out = s.getOutputStream()
+    override val headerSize: Int get() = Doip.HEADER_SIZE
+    override val maxPayloadLength: Int get() = Doip.MAX_PAYLOAD_LENGTH
+    override val connectHint: String
+        get() = "DoIP connect to $host:$port failed — a 2010–2016 F10/F11 speaks HSFZ (port 6801), try that option;"
 
-            // DoIP routing activation handshake.
-            Doip.write(out, Doip.routingActivationRequest())
-            var res = Doip.readFrame(inp)
-            var skipped = 0
-            while (res.payloadType != Doip.TYPE_ROUTING_ACTIVATION_RES && skipped++ < 4) {
-                if (res.payloadType == Doip.TYPE_ALIVE_CHECK_REQ) Doip.write(out, Doip.aliveCheckResponse())
-                res = Doip.readFrame(inp)
-            }
-            if (res.payloadType != Doip.TYPE_ROUTING_ACTIVATION_RES) {
-                throw EcuException("DoIP routing activation failed (type 0x${res.payloadType.toString(16)})")
-            }
-            // Response code is the 5th byte of the routing-activation response payload; 0x10 = success.
-            val code = res.payload.getOrNull(4)?.toInt()?.and(0xFF) ?: -1
-            if (code != 0x10) {
-                throw EcuException("DoIP routing activation rejected (code 0x${code.toString(16)})")
-            }
+    override fun payloadLength(header: ByteArray): Int = Doip.payloadLength(header)
 
-            socket = s
-            input = inp
-            output = out
-            keepAlive.start()
-        } catch (e: Exception) {
-            runCatching { s.close() }
-            socket = null
-            input = null
-            output = null
-            if (e is EcuException) throw e
-            throw EcuException(
-                "DoIP connect to $host:$port failed: ${e.message ?: e.javaClass.simpleName}. " +
-                    "A 2010–2016 F10/F11 gateway speaks HSFZ (port 6801) — try the HSFZ option.", e
-            )
+    override fun requestFrame(diagAddress: Int, uds: ByteArray): ByteArray =
+        Doip.diagnosticMessage(Doip.TESTER_ADDRESS, diagAddress, uds)
+
+    override fun classify(frame: ByteArray): Incoming {
+        val parsed = Doip.parse(frame) ?: return Incoming.Ignore
+        return when (parsed.payloadType) {
+            Doip.TYPE_DIAGNOSTIC_MESSAGE -> {
+                val payload = parsed.payload
+                if (payload.size < 4) return Incoming.Ignore
+                val source = ((payload[0].toInt() and 0xFF) shl 8) or (payload[1].toInt() and 0xFF)
+                // A frame from another module belongs to an earlier request; skip it rather
+                // than failing the request in flight.
+                Incoming.Response(source, payload.copyOfRange(4, payload.size))
+            }
+            Doip.TYPE_DIAGNOSTIC_ACK -> {
+                val code = Doip.diagnosticAckCode(parsed.payload)
+                if (code != 0) Incoming.Rejected("Gateway rejected the message (ACK code 0x${code.toString(16)})")
+                else Incoming.Ignore
+            }
+            Doip.TYPE_DIAGNOSTIC_NACK ->
+                Incoming.Rejected("Gateway could not reach the module (DoIP diagnostic NACK)")
+            Doip.TYPE_ALIVE_CHECK_REQ -> {
+                write(Doip.aliveCheckResponse())
+                Incoming.Ignore
+            }
+            Doip.TYPE_GENERIC_NACK -> {
+                val code = parsed.payload.getOrNull(0)?.toInt()?.and(0xFF) ?: -1
+                Incoming.Rejected("Gateway rejected the message (generic NACK 0x${code.toString(16)})")
+            }
+            else -> Incoming.Ignore
         }
     }
 
-    override fun disconnect() {
-        keepAlive.stop()
-        runCatching { socket?.close() }
-        socket = null; input = null; output = null
-    }
-
-    override fun transceive(diagAddress: Int, request: ByteArray): ByteArray {
-        keepAlive.touch(diagAddress)
-        return rawTransceive(diagAddress, request)
-    }
-
-    private fun rawTransceive(diagAddress: Int, request: ByteArray): ByteArray = synchronized(lock) {
-        transceiveLocked(diagAddress, request)
-    }
-
-    /** Sends one UDS request and returns the final UDS response, absorbing acks and 0x78. */
-    private fun transceiveLocked(diagAddress: Int, request: ByteArray): ByteArray {
-        if (!isConnected) throw EcuException("ENET transport not connected")
-        val out = output ?: throw EcuException("Not connected")
-        val inp = input ?: throw EcuException("Not connected")
-        val s = socket ?: throw EcuException("Not connected")
-        try {
-            Doip.write(out, Doip.diagnosticMessage(Doip.TESTER_ADDRESS, diagAddress, request))
-            s.soTimeout = readTimeoutMs
-            var pendingDeadline = 0L
-            var ignoredUnknown = 0
-            while (true) {
-                val frame = try {
-                    Doip.readFrame(inp)
-                } catch (e: SocketTimeoutException) {
-                    if (pendingDeadline != 0L && System.currentTimeMillis() < pendingDeadline) continue
-                    throw EcuException(
-                        "No response from module 0x%02X within %d ms".format(diagAddress, readTimeoutMs), e
-                    )
-                }
-                when (frame.payloadType) {
-                    Doip.TYPE_DIAGNOSTIC_MESSAGE -> {
-                        val resp = Doip.udsFromDiagnostic(frame.payload, expectedTarget = diagAddress)
-                        // 0x7F xx 0x78 = response pending; keep waiting for the real answer.
-                        if (Uds.negativeResponseCode(resp) == 0x78) {
-                            if (pendingDeadline == 0L) pendingDeadline = System.currentTimeMillis() + pendingTimeoutMs
-                            s.soTimeout = 5000
-                            continue
-                        }
-                        return resp
-                    }
-                    Doip.TYPE_DIAGNOSTIC_ACK -> {
-                        val ack = Doip.diagnosticAckCode(frame.payload)
-                        if (ack != 0) {
-                            throw EcuException("DoIP diagnostic ACK error code 0x${ack.toString(16)}")
-                        }
-                        continue // positive ack, real response follows
-                    }
-                    Doip.TYPE_DIAGNOSTIC_NACK ->
-                        throw EcuException("DoIP diagnostic NACK from gateway (module 0x%02X unreachable?)".format(diagAddress))
-                    Doip.TYPE_ALIVE_CHECK_REQ -> {
-                        Doip.write(out, Doip.aliveCheckResponse())
-                        continue
-                    }
-                    Doip.TYPE_GENERIC_NACK ->
-                        throw EcuException("DoIP generic NACK code 0x${(frame.payload.getOrNull(0)?.toInt()?.and(0xFF) ?: -1).toString(16)}")
-                    else -> {
-                        ignoredUnknown++
-                        if (ignoredUnknown > 8) {
-                            throw EcuException(
-                                "DoIP stalled on unexpected payload type 0x${frame.payloadType.toString(16)}"
-                            )
-                        }
-                    }
-                }
+    override fun handshake() {
+        write(Doip.routingActivationRequest())
+        val deadline = System.currentTimeMillis() + ROUTING_ACTIVATION_TIMEOUT_MS
+        while (true) {
+            if (System.currentTimeMillis() > deadline) {
+                throw EcuException("DoIP routing activation timed out")
             }
-        } catch (e: EcuException) {
-            throw e
-        } catch (e: Exception) {
-            throw EcuException("DoIP link error: ${e.message ?: e.javaClass.simpleName}", e)
+            val frame = try {
+                readHandshakeFrame(deadline)
+            } catch (e: SocketTimeoutException) {
+                throw EcuException("DoIP routing activation timed out", e)
+            }
+            val parsed = Doip.parse(frame) ?: continue
+            when (parsed.payloadType) {
+                Doip.TYPE_ALIVE_CHECK_REQ -> write(Doip.aliveCheckResponse())
+                Doip.TYPE_ROUTING_ACTIVATION_RES -> {
+                    // Response code is the 5th payload byte; 0x10 = routing activated.
+                    val code = parsed.payload.getOrNull(4)?.toInt()?.and(0xFF) ?: -1
+                    if (code != ROUTING_ACTIVATION_SUCCESS) {
+                        throw EcuException("DoIP routing activation rejected (code 0x${code.toString(16)})")
+                    }
+                    return
+                }
+                Doip.TYPE_GENERIC_NACK ->
+                    throw EcuException("Gateway rejected the routing activation request")
+                else -> Unit // ignore anything else during the handshake
+            }
         }
+    }
+
+    private companion object {
+        const val ROUTING_ACTIVATION_TIMEOUT_MS = 5000L
+        const val ROUTING_ACTIVATION_SUCCESS = 0x10
     }
 }

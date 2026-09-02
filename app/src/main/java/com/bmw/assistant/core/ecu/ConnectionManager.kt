@@ -8,8 +8,10 @@ import com.bmw.assistant.core.ecu.obd.BleSerialLink
 import com.bmw.assistant.core.ecu.obd.BluetoothSppSerialLink
 import com.bmw.assistant.core.ecu.obd.Elm327Transport
 import com.bmw.assistant.core.ecu.obd.TcpSerialLink
+import com.bmw.assistant.core.ecu.net.LinkNetwork
 import com.bmw.assistant.core.ecu.uds.Doip
 import com.bmw.assistant.core.ecu.uds.Hsfz
+import com.bmw.assistant.core.ecu.uds.Uds
 import android.bluetooth.BluetoothDevice
 import android.content.Context
 import com.bmw.assistant.data.model.BackupSource
@@ -19,7 +21,12 @@ import com.bmw.assistant.data.model.DemoFault
 import com.bmw.assistant.data.model.LiveParameter
 import com.bmw.assistant.data.model.Module
 import com.bmw.assistant.data.model.ValueType
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 
 /**
@@ -41,6 +48,9 @@ data class ConnectionState(
     val message: String? = null,
     val supportsCoding: Boolean = false,
     val supportsDiagnostics: Boolean = false,
+    /** VIN read from the car after connecting, or null when it could not be identified. */
+    val vin: String? = null,
+    /** One line describing the car and link, for the connection bar. */
     val vehicleInfo: String? = null
 ) {
     val isConnected get() = status == ConnectionStatus.CONNECTED
@@ -65,11 +75,15 @@ object ConnectionManager {
     @Volatile private var transport: EcuTransport? = null
 
     /**
-     * Connection type of the live transport. Kept separately from [current] because
-     * `LiveData.postValue` is asynchronous — callers that run immediately after [connectDemo]
-     * would otherwise still see DISCONNECTED and treat a demo session as hardware.
+     * Connection work runs on an app-lifetime scope, not the calling ViewModel's: a connect
+     * that is half-way through a TCP/GATT handshake when the user leaves the screen must still
+     * finish (and be recorded as [transport]) or be torn down — never orphan an open socket
+     * with its keep-alive thread. Callers `join` the work so they can still await the outcome.
      */
-    @Volatile private var liveType: ConnectionType? = null
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+
+    /** Serialises connect/disconnect so two taps cannot race on [transport]. */
+    private val linkMutex = Mutex()
 
     val current: ConnectionState get() = _state.value ?: ConnectionState()
 
@@ -85,7 +99,8 @@ object ConnectionManager {
     fun codingEngine(): CodingEngine? {
         val t = transport ?: return null
         if (!t.isConnected) return null
-        return CodingEngine(t, liveType == ConnectionType.DEMO)
+        // Demo-ness comes from the transport instance, never from LiveData that may lag behind.
+        return CodingEngine(t, t is DemoTransport)
     }
 
     /** A UDS client bound to the active transport for identification/expert reads. */
@@ -108,62 +123,145 @@ object ConnectionManager {
     /** Active demo transport when connected in demo mode, otherwise null. */
     fun demoTransport(): DemoTransport? = transport as? DemoTransport
 
-    suspend fun connectDemo() = connectWith(
-        ConnectionType.DEMO, "Demo Mode", DemoTransport()
-    )
+    suspend fun connectDemo() = connectWith(ConnectionType.DEMO, "Demo Mode") { DemoTransport() }
 
-    /** ENET over HSFZ (TCP 6801) — the right choice for a 2010–2016 F10/F11. */
-    suspend fun connectEnetHsfz(ip: String, port: Int = Hsfz.PORT_TCP) =
-        connectWith(ConnectionType.ENET_HSFZ, "ENET $ip", EnetHsfzTransport(ip, port))
+    /**
+     * ENET over HSFZ (TCP 6801) — the right choice for a 2010–2016 F10/F11.
+     *
+     * [context] is used to pin the sockets to the ENET link: an ENET cable or ENET-WiFi adapter
+     * offers no internet, so Android would otherwise route the connection out the mobile
+     * interface and the car would never see it.
+     */
+    suspend fun connectEnetHsfz(context: Context, ip: String, port: Int = Hsfz.PORT_TCP) =
+        connectWith(
+            ConnectionType.ENET_HSFZ, "ENET $ip", context
+        ) { EnetHsfzTransport(ip, port) }
 
     /** ENET over DoIP (TCP 13400) — G-series and late F-series gateways. */
-    suspend fun connectEnetDoip(ip: String, port: Int = Doip.PORT) =
-        connectWith(ConnectionType.ENET_DOIP, "ENET/DoIP $ip", EnetDoipTransport(ip, port))
+    suspend fun connectEnetDoip(context: Context, ip: String, port: Int = Doip.PORT) =
+        connectWith(
+            ConnectionType.ENET_DOIP, "ENET/DoIP $ip", context
+        ) { EnetDoipTransport(ip, port) }
 
     /** Bluetooth Classic (SPP) ELM327/STN adapter. */
     suspend fun connectObdBluetooth(device: BluetoothDevice, label: String) =
-        connectWith(ConnectionType.OBD_BT, label, Elm327Transport(BluetoothSppSerialLink(device)))
+        connectWith(ConnectionType.OBD_BT, label) { Elm327Transport(BluetoothSppSerialLink(device)) }
 
     /** BLE ELM327 adapter. */
     suspend fun connectObdBle(context: Context, device: BluetoothDevice, label: String) =
-        connectWith(ConnectionType.OBD_BLE, label, Elm327Transport(BleSerialLink(context.applicationContext, device)))
+        connectWith(ConnectionType.OBD_BLE, label) {
+            Elm327Transport(BleSerialLink(context.applicationContext, device))
+        }
 
-    /** WiFi ELM327 adapter. */
-    suspend fun connectObdWifi(ip: String, port: Int = 35000) =
-        connectWith(ConnectionType.OBD_WIFI, "WiFi OBD $ip", Elm327Transport(TcpSerialLink(ip, port)))
+    /** WiFi ELM327 adapter — also on an internet-less network, so it is pinned the same way. */
+    suspend fun connectObdWifi(context: Context, ip: String, port: Int = TcpSerialLink.DEFAULT_PORT) =
+        connectWith(
+            ConnectionType.OBD_WIFI, "WiFi OBD $ip", context
+        ) { Elm327Transport(TcpSerialLink(ip, port)) }
 
-    private suspend fun connectWith(type: ConnectionType, label: String, t: EcuTransport) {
-        disconnect()
-        _state.postValue(ConnectionState(type, ConnectionStatus.CONNECTING, label))
-        try {
-            withContext(Dispatchers.IO) { t.connect() }
-            transport = t
-            liveType = type
-            val vehicle = withContext(Dispatchers.IO) { identifyVehicle(t, type) }
-            _state.postValue(
-                ConnectionState(
-                    type, ConnectionStatus.CONNECTED, label,
-                    supportsCoding = t.supportsCoding,
-                    supportsDiagnostics = t.supportsDiagnostics,
-                    vehicleInfo = vehicle
-                )
-            )
-        } catch (e: Exception) {
-            runCatching { t.disconnect() }
-            transport = null
-            liveType = null
-            _state.postValue(
-                ConnectionState(type, ConnectionStatus.ERROR, label, e.message ?: "Connection failed")
-            )
+    /**
+     * @param localNetworkContext non-null for links that live on an internet-less local network
+     *   (ENET, WiFi OBD), which must be pinned before the socket is opened.
+     * @param create builds the transport *inside* the connect job, so a cancelled caller never
+     *   leaves a half-built link behind.
+     */
+    private suspend fun connectWith(
+        type: ConnectionType,
+        label: String,
+        localNetworkContext: Context? = null,
+        create: () -> EcuTransport
+    ) {
+        // join() is cancellable for the caller, but the launched job itself is not cancelled
+        // when the caller goes away — see [scope].
+        scope.launch {
+            linkMutex.withLock {
+                closeCurrent()
+                _state.postValue(ConnectionState(type, ConnectionStatus.CONNECTING, label))
+                var built: EcuTransport? = null
+                try {
+                    if (localNetworkContext != null) LinkNetwork.acquire(localNetworkContext)
+                    val t = create()
+                    built = t
+                    t.connect()
+                    transport = t
+                    val vin = identifyVehicle(t)
+                    _state.postValue(
+                        ConnectionState(
+                            type, ConnectionStatus.CONNECTED, label,
+                            supportsCoding = t.supportsCoding, supportsDiagnostics = t.supportsDiagnostics,
+                            vin = vin, vehicleInfo = describeVehicle(t, type, vin)
+                        )
+                    )
+                } catch (e: Exception) {
+                    runCatching { built?.disconnect() }
+                    transport = null
+                    LinkNetwork.release()
+                    _state.postValue(
+                        ConnectionState(type, ConnectionStatus.ERROR, label, userMessage(e))
+                    )
+                }
+            }
+        }.join()
+    }
+
+    /**
+     * Reads the VIN so the app can tell which car it is attached to. Coding bytes are only
+     * meaningful for the module they came from, so every backup is stamped with this and a
+     * restore onto a different car is refused.
+     *
+     * Best effort, asking each module that commonly holds it in turn. A car that answers none of
+     * them still connects — it just loses the cross-car guard, and the UI says so. Identification
+     * must never be the reason a connection fails.
+     */
+    private fun identifyVehicle(t: EcuTransport): String? {
+        val client = UdsClient(t)
+        for (address in VIN_SOURCES) {
+            val vin = runCatching {
+                String(client.readDataByIdentifier(address, Uds.DID_VIN), Charsets.ISO_8859_1)
+            }.getOrNull()
+                ?.filter { it.isLetterOrDigit() }
+                ?.takeIf { it.length == VIN_LENGTH }
+            if (vin != null) return vin
+        }
+        return null
+    }
+
+    /** One line for the connection bar: which car, over which link. */
+    private fun describeVehicle(t: EcuTransport, type: ConnectionType, vin: String?): String {
+        val link = t.description
+        return when {
+            type == ConnectionType.DEMO -> "Demo 2012 F10 · VIN ${vin ?: DemoTransport.DEMO_VIN}"
+            vin != null -> "VIN $vin · $link"
+            else -> "$link · car did not report a VIN"
         }
     }
 
-    fun disconnect() {
+    /** Turns a transport failure into one sentence a driver can act on. */
+    private fun userMessage(e: Exception): String = when (e) {
+        is EcuException -> e.message ?: "Connection failed"
+        is SecurityException -> "Permission denied. Grant the Bluetooth permission and try again."
+        else -> e.message ?: "Connection failed"
+    }
+
+    /**
+     * Closes the active link. Socket/adapter teardown does blocking I/O (an ELM327 protocol
+     * close, a TCP FIN), so it runs on Dispatchers.IO — never on the main thread.
+     */
+    suspend fun disconnect() {
+        scope.launch {
+            linkMutex.withLock {
+                closeCurrent()
+                _state.postValue(ConnectionState())
+            }
+        }.join()
+    }
+
+    /** Must be called with [linkMutex] held, on an IO thread. */
+    private fun closeCurrent() {
         val t = transport
         transport = null
-        liveType = null
-        runCatching { t?.disconnect() }
-        _state.postValue(ConnectionState())
+        if (t != null) runCatching { t.disconnect() }
+        LinkNetwork.release()
     }
 
     /**
@@ -192,9 +290,12 @@ object ConnectionManager {
     fun readValue(module: Module, coding: CodingItem): String? =
         codingEngine()?.readCoding(module, coding)
 
+    /** VIN of the connected car, or null in demo mode / when the car did not answer. */
+    fun vin(): String? = current.vin
+
     /** Backup source matching the active connection (demo vs. real hardware). */
     fun backupSource(): BackupSource =
-        if (current.isDemo) BackupSource.DEMO else BackupSource.HARDWARE
+        if (transport is DemoTransport) BackupSource.DEMO else BackupSource.HARDWARE
 
     /**
      * Reads the raw bytes of one module coding block for a backup snapshot.
@@ -221,6 +322,13 @@ object ConnectionManager {
                     "This backup was captured in demo mode and cannot be written to a real car."
                 else
                     "This backup was captured from real hardware and cannot be restored in demo mode."
+            )
+        }
+        val connectedVin = current.vin
+        if (backup.vin != null && connectedVin != null && backup.vin != connectedVin) {
+            throw EcuException(
+                "This backup was captured from VIN ${backup.vin}, but ${connectedVin} is connected. " +
+                    "Coding bytes are specific to one car — refusing to write them to a different one."
             )
         }
         engine.restoreBlock(module, backup.dataIdentifier, Hex.decode(backup.blockHex))
@@ -273,6 +381,20 @@ object ConnectionManager {
             demo.seedFault(module.diagAddress, dtc, fault.status)
         }
     }
+
+    private const val CAS_ADDRESS = 0x40
+    private const val KOMBI_ADDRESS = 0x60
+    private const val DME_ADDRESS = 0x12
+    private const val VIN_LENGTH = 17
+
+    /**
+     * Modules asked for the VIN, in order. On an F-series the car access system (CAS) is the
+     * authoritative holder; the gateway, instrument cluster and engine controller are fallbacks
+     * for cars that do not answer it there.
+     */
+    private val VIN_SOURCES = intArrayOf(
+        CAS_ADDRESS, FramedTcpTransport.ZGW_ADDRESS, KOMBI_ADDRESS, DME_ADDRESS
+    )
 
     private fun encodeForSeed(
         coding: CodingItem,

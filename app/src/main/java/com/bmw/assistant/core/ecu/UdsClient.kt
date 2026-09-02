@@ -33,6 +33,7 @@ class UdsClient(private val transport: EcuTransport) {
         if (!Uds.isPositive(resp, Uds.SID_READ_DATA_BY_IDENTIFIER)) {
             throw EcuException("ReadDataByIdentifier(0x%04X) failed: ".format(did) + describe(resp))
         }
+        requireEchoedIdentifier(resp, did, "ReadDataByIdentifier")
         return if (resp.size > 3) resp.copyOfRange(3, resp.size) else ByteArray(0)
     }
 
@@ -50,6 +51,22 @@ class UdsClient(private val transport: EcuTransport) {
         val resp = transport.transceive(diagAddress, request)
         if (!Uds.isPositive(resp, Uds.SID_WRITE_DATA_BY_IDENTIFIER)) {
             throw EcuException("WriteDataByIdentifier(0x%04X) failed: ".format(did) + describe(resp))
+        }
+        requireEchoedIdentifier(resp, did, "WriteDataByIdentifier")
+    }
+
+    /**
+     * A 0x62/0x6E response echoes the identifier it refers to. Checking it is the last line of
+     * defence against a stale answer being paired with the wrong request: for coding that would
+     * mean reading one block and writing its bytes into a different one.
+     */
+    private fun requireEchoedIdentifier(response: ByteArray, did: Int, service: String) {
+        if (response.size < 3) throw EcuException("$service(0x%04X) returned a truncated response".format(did))
+        val echoed = ((response[1].toInt() and 0xFF) shl 8) or (response[2].toInt() and 0xFF)
+        if (echoed != did) {
+            throw EcuException(
+                "$service(0x%04X) answered for identifier 0x%04X — response mismatch, aborting".format(did, echoed)
+            )
         }
     }
 

@@ -2,7 +2,6 @@ package com.bmw.assistant.feature.connection
 
 import android.app.Application
 import android.bluetooth.BluetoothDevice
-import android.content.Context
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
@@ -11,11 +10,16 @@ import com.bmw.assistant.BmwAssistantApp
 import com.bmw.assistant.core.ecu.ConnectionManager
 import com.bmw.assistant.core.ecu.EnetDiscovery
 import com.bmw.assistant.core.ecu.EnetGateway
+import com.bmw.assistant.core.ecu.EnetProtocol
 import com.bmw.assistant.ui.common.Event
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
+/**
+ * Drives the connection screen. All transport work runs on Dispatchers.IO inside
+ * [ConnectionManager]; this ViewModel only sequences it and exposes discovery results.
+ */
 class ConnectionViewModel(app: Application) : AndroidViewModel(app) {
 
     private val repo = (app as BmwAssistantApp).codingRepository
@@ -23,9 +27,13 @@ class ConnectionViewModel(app: Application) : AndroidViewModel(app) {
 
     val state = ConnectionManager.state
 
-    private val _gateways = MutableLiveData<Event<List<EnetGateway>>>()
-    val gateways: LiveData<Event<List<EnetGateway>>> = _gateways
+    private val _discovering = MutableLiveData(false)
+    val discovering: LiveData<Boolean> = _discovering
 
+    private val _discovered = MutableLiveData<Event<List<EnetGateway>>>()
+    val discovered: LiveData<Event<List<EnetGateway>>> = _discovered
+
+    /** One-off messages for the screen to show, for things the screen cannot know itself. */
     private val _notice = MutableLiveData<Event<String>>()
     val notice: LiveData<Event<String>> = _notice
 
@@ -47,49 +55,60 @@ class ConnectionViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
-    fun discoverEnet() {
+    /** Broadcasts HSFZ/DoIP identification requests and reports every gateway that answers. */
+    fun discoverGateways() {
+        if (_discovering.value == true) return
+        _discovering.value = true
         viewModelScope.launch {
-            val found = withContext(Dispatchers.IO) {
-                runCatching { EnetDiscovery.discover() }.getOrElse { emptyList() }
+            val result = withContext(Dispatchers.IO) {
+                EnetDiscovery.discoverDetailed(getApplication())
             }
-            _gateways.value = Event(found)
-            if (found.isEmpty()) {
-                _notice.value = Event(
-                    "No gateway found. Plug in the ENET cable (or join the adapter Wi-Fi), " +
-                        "switch the ignition on, and try again — or type the IP below."
-                )
+            _discovering.value = false
+            _discovered.value = Event(result.gateways)
+            // A probe that could not even be sent is worth saying out loud: that points at the
+            // phone's network rather than at the car.
+            if (result.gateways.isEmpty() && result.problems.isNotEmpty()) {
+                _notice.value = Event(result.problems.first())
             }
         }
     }
 
-    fun connectEnet(ip: String, hsfz: Boolean) {
-        val trimmed = ip.trim()
-        if (trimmed.isEmpty()) {
-            _notice.value = Event("Enter the car/gateway IP address.")
-            return
-        }
-        viewModelScope.launch {
-            if (hsfz) ConnectionManager.connectEnetHsfz(trimmed)
-            else ConnectionManager.connectEnetDoip(trimmed)
+    fun connectEnet(ip: String, protocol: EnetProtocol) {
+        connectHardware {
+            when (protocol) {
+                EnetProtocol.HSFZ -> ConnectionManager.connectEnetHsfz(getApplication(), ip)
+                EnetProtocol.DOIP -> ConnectionManager.connectEnetDoip(getApplication(), ip)
+            }
         }
     }
 
     fun connectObdBluetooth(device: BluetoothDevice, label: String) {
-        viewModelScope.launch { ConnectionManager.connectObdBluetooth(device, label) }
+        connectHardware { ConnectionManager.connectObdBluetooth(device, label) }
     }
 
-    fun connectObdBle(context: Context, device: BluetoothDevice, label: String) {
-        viewModelScope.launch { ConnectionManager.connectObdBle(context, device, label) }
+    fun connectObdBle(device: BluetoothDevice, label: String) {
+        connectHardware { ConnectionManager.connectObdBle(getApplication(), device, label) }
     }
 
     fun connectObdWifi(ip: String, port: Int) {
-        val trimmed = ip.trim()
-        if (trimmed.isEmpty()) {
-            _notice.value = Event("Enter the WiFi adapter IP address.")
-            return
-        }
-        viewModelScope.launch { ConnectionManager.connectObdWifi(trimmed, port) }
+        connectHardware { ConnectionManager.connectObdWifi(getApplication(), ip, port) }
     }
 
-    fun disconnect() = ConnectionManager.disconnect()
+    /**
+     * Connects to real hardware and drops the locally stored values first.
+     *
+     * The value store is the app's mirror of what the car holds. After a demo session it is full
+     * of simulated values; showing those next to a real car would tell the driver a feature is on
+     * when it is not. Cleared here, each screen reads the actual bytes from the car instead.
+     */
+    private fun connectHardware(connect: suspend () -> Unit) {
+        viewModelScope.launch {
+            repo.clearValues()
+            connect()
+        }
+    }
+
+    fun disconnect() {
+        viewModelScope.launch { ConnectionManager.disconnect() }
+    }
 }

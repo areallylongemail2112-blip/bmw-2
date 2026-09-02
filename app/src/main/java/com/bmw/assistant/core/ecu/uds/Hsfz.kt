@@ -45,6 +45,9 @@ object Hsfz {
     const val CTRL_ERR_DIAG_APP_NOT_READY = 0x0045
     const val CTRL_ERR_OUT_OF_MEMORY = 0x00FF
 
+    /** Bytes before the payload: 4-byte big-endian length + 2-byte control word. */
+    const val HEADER_SIZE = 6
+
     /** Hard cap so a corrupted length field cannot force an OOM. */
     const val MAX_LENGTH = 64 * 1024
 
@@ -76,6 +79,24 @@ object Hsfz {
 
     /** UDP identification request broadcast to [PORT_UDP_IDENT]. */
     fun identificationRequest(): ByteArray = frame(CTRL_VEHICLE_IDENT, ByteArray(0))
+
+    /** Payload length announced by a [HEADER_SIZE]-byte header. */
+    fun payloadLength(header: ByteArray): Int {
+        if (header.size < HEADER_SIZE) return -1
+        return ((header[0].toInt() and 0xFF) shl 24) or
+            ((header[1].toInt() and 0xFF) shl 16) or
+            ((header[2].toInt() and 0xFF) shl 8) or
+            (header[3].toInt() and 0xFF)
+    }
+
+    /** Parses one complete frame (header included), or null when it is malformed. */
+    fun parseFrame(frame: ByteArray): Frame? {
+        if (frame.size < HEADER_SIZE) return null
+        val len = payloadLength(frame)
+        if (len < 0 || HEADER_SIZE + len > frame.size) return null
+        val control = ((frame[4].toInt() and 0xFF) shl 8) or (frame[5].toInt() and 0xFF)
+        return Frame(control, frame.copyOfRange(HEADER_SIZE, HEADER_SIZE + len))
+    }
 
     /** Blocking read of one HSFZ frame from [input]. */
     fun readFrame(input: InputStream): Frame {

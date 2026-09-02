@@ -36,6 +36,14 @@ data class CodingItem(
 }
 
 /** Root shape of the bundled `codings_f10.json` asset. */
+/**
+ * The bundled coding catalog.
+ *
+ * [assetVersion] is bumped whenever the modules or coding maps in `codings_f10.json` change.
+ * [com.bmw.assistant.data.CodingRepository] re-seeds the database when the asset's version is
+ * newer than the one already stored, so an app update actually delivers corrected maps to
+ * existing installs instead of only to fresh ones.
+ */
 data class CodingsData(
     val assetVersion: Int = 1,
     val modules: List<Module>,

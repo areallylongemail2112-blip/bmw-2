@@ -17,4 +17,49 @@
     <string name="backups_new">Back up all</string>
     <string name="backups_restore">Restore</string>
     <string name="backups_delete">Delete</string>
+    <string name="conn_discover">Find car on network</string>
+    <string name="conn_discovering">Searching…</string>
+    <string name="conn_scanning">Scanning… (tap to stop)</string>
+    <string name="conn_status_connected">Connected — %1$s</string>
+    <string name="conn_status_connecting">Connecting to %1$s…</string>
+    <string name="conn_status_error">Error: %1$s</string>
+    <string name="conn_status_disconnected">Not connected</string>
+    <string name="conn_enter_gateway_ip">Enter the car/gateway IP address.</string>
+    <string name="conn_enter_adapter_ip">Enter the WiFi adapter’s IP address.</string>
+    <string name="conn_enter_valid_port">Enter a port between 1 and 65535.</string>
+    <string name="conn_no_gateway_found">No gateway answered. Check the cable/WiFi adapter and that ignition is on.</string>
+    <string name="conn_choose_gateway">Choose a gateway</string>
+    <string name="conn_gateway_found">Found %1$s</string>
+    <string name="conn_enable_bluetooth">Turn on Bluetooth first.</string>
+    <string name="conn_bt_permission_needed">Bluetooth permission is required to use OBD adapters.</string>
+    <string name="conn_no_paired_adapters">No paired Bluetooth devices. Pair the adapter in Android Bluetooth settings first.</string>
+    <string name="conn_choose_paired">Choose a paired adapter</string>
+    <string name="conn_no_ble_found">No BLE adapters found. Make sure the adapter is plugged in and powered.</string>
+    <string name="conn_device_gone">Device no longer available.</string>
+
+    <!-- Connection screen copy -->
+    <string name="conn_demo_title">Demo mode</string>
+    <string name="conn_demo_body">Try the whole app with no hardware. Coding, fault codes and live data are simulated against a virtual F10.</string>
+    <string name="conn_demo_start">Start demo mode</string>
+    <string name="conn_enet_title">ENET cable or ENET-WiFi adapter</string>
+    <string name="conn_enet_body">Fastest and most reliable path for coding. Plug the ENET cable into the OBD port and the phone (USB-C Ethernet adapter), or join the ENET-WiFi adapter\u2019s network, switch the ignition on, then tap Find car. A 2012 F10 gateway speaks HSFZ on port 6801.</string>
+    <string name="conn_gateway_ip_hint">Gateway IP</string>
+    <string name="conn_proto_hsfz">HSFZ \u00b7 6801 (F10)</string>
+    <string name="conn_proto_doip">DoIP \u00b7 13400</string>
+    <string name="conn_enet_connect">Connect over ENET</string>
+    <string name="conn_obd_title">OBD adapter (Bluetooth, BLE or WiFi)</string>
+    <string name="conn_obd_body">ELM327/STN-based dongles (vLinker, OBDLink, UniCarScan, generic ELM327 v1.5). The app speaks BMW\u2019s extended-addressed UDS on the D-CAN bus, so coding and diagnostics both work. Slower than ENET; an STN-chip adapter is recommended for coding writes.</string>
+    <string name="conn_bt_paired">Bluetooth \u2013 choose paired adapter</string>
+    <string name="conn_wifi_ip_hint">WiFi adapter IP</string>
+    <string name="conn_wifi_port_hint">Port</string>
+    <string name="conn_wifi_connect">Connect WiFi OBD adapter</string>
+    <string name="conn_tip">Tip: keep the ignition on (engine off) for coding, and connect a battery charger for long sessions. The app backs up each coding block before writing and verifies every write by reading it back.</string>
+    <string name="conn_vin">VIN %1$s</string>
+    <string name="conn_vin_unknown">Car did not report a VIN \u2014 backups cannot be matched to it</string>
+
+    <!-- First-run safety disclaimer -->
+    <string name="disclaimer_title">Before you connect to a car</string>
+    <string name="disclaimer_body">This app writes configuration bytes to your car\u2019s control modules.\n\nThe coding definitions bundled with the app are illustrative and are marked unverified. Unverified maps can be exercised freely in demo mode, and the app refuses to write them to real hardware. To code a real car you must supply maps verified against your own car\u2019s coding data.\n\nReading fault codes and live data is passive. Clearing fault codes is reversible.\n\nYou are responsible for what you change. Keep the battery charged, keep the ignition on, and never code while driving. This software comes with no warranty, and it is not affiliated with or endorsed by any vehicle manufacturer.</string>
+    <string name="disclaimer_accept">I understand</string>
+    <string name="disclaimer_decline">Exit</string>
 </resources>

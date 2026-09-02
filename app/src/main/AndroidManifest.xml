@@ -1,13 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
-    <!-- Real ECU coding/diagnostics needs the local network (ENET/DoIP over TCP, OBD-WiFi). -->
+    <!-- Real ECU coding/diagnostics needs the local network (ENET/HSFZ, DoIP, OBD-WiFi). -->
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
+    <!-- Inbound gateway discovery replies are broadcast; many Wi-Fi chipsets filter those
+         without a multicast lock. -->
     <uses-permission android:name="android.permission.CHANGE_WIFI_MULTICAST_STATE" />
 
-    <!-- BLE OBD adapters. On Android 12+ BLUETOOTH_SCAN/CONNECT replace the legacy perms. -->
+    <!-- OBD adapters. On Android 12+ BLUETOOTH_SCAN/CONNECT replace the legacy permissions. -->
     <uses-permission android:name="android.permission.BLUETOOTH"
         android:maxSdkVersion="30" />
     <uses-permission android:name="android.permission.BLUETOOTH_ADMIN"
@@ -19,11 +21,15 @@
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"
         android:maxSdkVersion="30" />
 
+    <!-- Both optional: an ENET cable needs no Bluetooth at all. -->
+    <uses-feature android:name="android.hardware.bluetooth" android:required="false" />
     <uses-feature android:name="android.hardware.bluetooth_le" android:required="false" />
 
     <application
         android:name=".BmwAssistantApp"
-        android:allowBackup="true"
+        android:allowBackup="false"
+        android:fullBackupContent="false"
+        android:dataExtractionRules="@xml/data_extraction_rules"
         android:icon="@mipmap/ic_launcher"
         android:label="@string/app_name"
         android:roundIcon="@mipmap/ic_launcher_round"
@@ -45,7 +51,10 @@
         <activity android:name=".feature.coding.EditCodingActivity" android:exported="false" />
         <activity android:name=".feature.diagnostics.DiagnosticsModulesActivity" android:exported="false" />
         <activity android:name=".feature.diagnostics.DiagnosticsModuleActivity" android:exported="false" />
-        <activity android:name=".feature.connection.ConnectionActivity" android:exported="false" />
+        <activity
+            android:name=".feature.connection.ConnectionActivity"
+            android:exported="false"
+            android:windowSoftInputMode="adjustResize" />
         <activity android:name=".feature.backups.BackupsActivity" android:exported="false" />
     </application>
 </manifest>
