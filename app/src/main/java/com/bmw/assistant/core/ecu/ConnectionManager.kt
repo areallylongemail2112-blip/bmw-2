@@ -4,7 +4,14 @@ import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import com.bmw.assistant.core.coding.CodingEngine
 import com.bmw.assistant.core.diagnostics.DiagnosticsEngine
+import com.bmw.assistant.core.ecu.obd.BleSerialLink
+import com.bmw.assistant.core.ecu.obd.BluetoothSppSerialLink
+import com.bmw.assistant.core.ecu.obd.Elm327Transport
+import com.bmw.assistant.core.ecu.obd.TcpSerialLink
 import com.bmw.assistant.core.ecu.uds.Doip
+import com.bmw.assistant.core.ecu.uds.Hsfz
+import android.bluetooth.BluetoothDevice
+import android.content.Context
 import com.bmw.assistant.data.model.BackupSource
 import com.bmw.assistant.data.model.CodingBackup
 import com.bmw.assistant.data.model.CodingItem
@@ -15,19 +22,29 @@ import com.bmw.assistant.data.model.ValueType
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
-enum class ConnectionType { DEMO, WIFI_ENET, BLE }
+/**
+ * How the phone is linked to the car.
+ *  - DEMO       offline simulator
+ *  - ENET_HSFZ  ENET cable / ENET-WiFi adapter, HSFZ framing on TCP 6801 (F-series incl. F10)
+ *  - ENET_DOIP  ENET, DoIP framing on TCP 13400 (G-series / late F-series)
+ *  - OBD_BT     Bluetooth Classic ELM327/STN dongle (D-CAN via the OBD port)
+ *  - OBD_BLE    Bluetooth Low Energy ELM327 dongle
+ *  - OBD_WIFI   WiFi ELM327 dongle (TCP, usually 192.168.0.10:35000)
+ */
+enum class ConnectionType { DEMO, ENET_HSFZ, ENET_DOIP, OBD_BT, OBD_BLE, OBD_WIFI }
 enum class ConnectionStatus { DISCONNECTED, CONNECTING, CONNECTED, ERROR }
 
 data class ConnectionState(
     val type: ConnectionType? = null,
     val status: ConnectionStatus = ConnectionStatus.DISCONNECTED,
     val label: String? = null,
-    val message: String? = null
+    val message: String? = null,
+    val supportsCoding: Boolean = false,
+    val supportsDiagnostics: Boolean = false
 ) {
     val isConnected get() = status == ConnectionStatus.CONNECTED
     val isDemo get() = type == ConnectionType.DEMO
-    val supportsCoding get() = type == ConnectionType.DEMO || type == ConnectionType.WIFI_ENET
-    val supportsDiagnostics get() = type == ConnectionType.DEMO || type == ConnectionType.WIFI_ENET
+    val isHardware get() = isConnected && !isDemo
 }
 
 /**
@@ -61,6 +78,16 @@ object ConnectionManager {
         return CodingEngine(t, current.isDemo)
     }
 
+    /** A UDS client bound to the active transport for identification/expert reads. */
+    fun udsClient(): UdsClient? {
+        val t = transport ?: return null
+        if (!t.isConnected) return null
+        return UdsClient(t)
+    }
+
+    /** Human-readable description of the active link, or null. */
+    fun transportDescription(): String? = transport?.takeIf { it.isConnected }?.description
+
     /** A diagnostics engine bound to the active transport, or null if not connected/capable. */
     fun diagnosticsEngine(): DiagnosticsEngine? {
         val t = transport ?: return null
@@ -75,11 +102,25 @@ object ConnectionManager {
         ConnectionType.DEMO, "Demo Mode", DemoTransport()
     )
 
-    suspend fun connectEnet(ip: String, port: Int = Doip.PORT) =
-        connectWith(ConnectionType.WIFI_ENET, "ENET $ip", EnetDoipTransport(ip, port))
+    /** ENET over HSFZ (TCP 6801) — the right choice for a 2010–2016 F10/F11. */
+    suspend fun connectEnetHsfz(ip: String, port: Int = Hsfz.PORT_TCP) =
+        connectWith(ConnectionType.ENET_HSFZ, "ENET $ip", EnetHsfzTransport(ip, port))
 
-    suspend fun connectBle(device: String, t: EcuTransport) =
-        connectWith(ConnectionType.BLE, device, t)
+    /** ENET over DoIP (TCP 13400) — G-series and late F-series gateways. */
+    suspend fun connectEnetDoip(ip: String, port: Int = Doip.PORT) =
+        connectWith(ConnectionType.ENET_DOIP, "ENET/DoIP $ip", EnetDoipTransport(ip, port))
+
+    /** Bluetooth Classic (SPP) ELM327/STN adapter. */
+    suspend fun connectObdBluetooth(device: BluetoothDevice, label: String) =
+        connectWith(ConnectionType.OBD_BT, label, Elm327Transport(BluetoothSppSerialLink(device)))
+
+    /** BLE ELM327 adapter. */
+    suspend fun connectObdBle(context: Context, device: BluetoothDevice, label: String) =
+        connectWith(ConnectionType.OBD_BLE, label, Elm327Transport(BleSerialLink(context.applicationContext, device)))
+
+    /** WiFi ELM327 adapter. */
+    suspend fun connectObdWifi(ip: String, port: Int = 35000) =
+        connectWith(ConnectionType.OBD_WIFI, "WiFi OBD $ip", Elm327Transport(TcpSerialLink(ip, port)))
 
     private suspend fun connectWith(type: ConnectionType, label: String, t: EcuTransport) {
         disconnect()
@@ -87,7 +128,12 @@ object ConnectionManager {
         try {
             withContext(Dispatchers.IO) { t.connect() }
             transport = t
-            _state.postValue(ConnectionState(type, ConnectionStatus.CONNECTED, label))
+            _state.postValue(
+                ConnectionState(
+                    type, ConnectionStatus.CONNECTED, label,
+                    supportsCoding = t.supportsCoding, supportsDiagnostics = t.supportsDiagnostics
+                )
+            )
         } catch (e: Exception) {
             runCatching { t.disconnect() }
             transport = null

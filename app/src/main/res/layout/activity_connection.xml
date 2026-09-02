@@ -43,26 +43,51 @@
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:orientation="horizontal"
-                    android:gravity="center_vertical"
+                    android:orientation="vertical"
                     android:padding="16dp">
 
-                    <ProgressBar
-                        android:id="@+id/progress"
-                        android:layout_width="22dp"
-                        android:layout_height="22dp"
-                        android:layout_marginEnd="12dp"
-                        android:indeterminateTint="@color/on_primary"
-                        android:visibility="gone" />
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:gravity="center_vertical">
+
+                        <ProgressBar
+                            android:id="@+id/progress"
+                            android:layout_width="22dp"
+                            android:layout_height="22dp"
+                            android:layout_marginEnd="12dp"
+                            android:indeterminateTint="@color/on_primary"
+                            android:visibility="gone" />
+
+                        <TextView
+                            android:id="@+id/statusText"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:text="Not connected"
+                            android:textColor="@color/on_primary"
+                            android:textStyle="bold" />
+                    </LinearLayout>
 
                     <TextView
-                        android:id="@+id/statusText"
-                        android:layout_width="0dp"
+                        android:id="@+id/vehicleText"
+                        android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:text="Not connected"
+                        android:layout_marginTop="6dp"
                         android:textColor="@color/on_primary"
-                        android:textStyle="bold" />
+                        android:textSize="13sp"
+                        android:visibility="gone" />
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/disconnectButton"
+                        style="@style/Widget.Material3.Button.TextButton"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_gravity="end"
+                        android:text="@string/disconnect"
+                        android:textColor="@color/on_primary"
+                        android:visibility="gone" />
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
 
@@ -72,7 +97,7 @@
                 android:text="Demo mode" />
             <TextView style="@style/CardBody" android:layout_width="match_parent"
                 android:layout_height="wrap_content" android:layout_marginTop="2dp"
-                android:text="Try the whole app with no hardware. Coding, fault codes, and live data are all simulated against a fake car with realistic values." />
+                android:text="Try the whole app with no hardware. Coding, fault codes and live data are simulated against a virtual F10." />
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/demoButton"
                 android:layout_width="match_parent"
@@ -80,19 +105,27 @@
                 android:layout_marginTop="8dp"
                 android:text="Start demo mode" />
 
-            <!-- ENET / WiFi -->
+            <!-- ENET -->
             <TextView style="@style/CardTitle" android:layout_width="wrap_content"
                 android:layout_height="wrap_content" android:layout_marginTop="24dp"
-                android:text="ENET / WiFi (coding + diagnostics)" />
+                android:text="ENET cable or ENET-WiFi adapter" />
             <TextView style="@style/CardBody" android:layout_width="match_parent"
                 android:layout_height="wrap_content" android:layout_marginTop="2dp"
-                android:text="Connect over an ENET cable or the gateway's WiFi and enter its IP address. This is the path that can write coding and read live UDS diagnostics on F-series modules (DoIP/UDS)." />
+                android:text="Fastest and most reliable path for coding. Plug the ENET cable into the OBD port and the phone (USB-C Ethernet adapter), or join the ENET-WiFi adapter\u2019s network, switch the ignition on, then tap Find car. A 2012 F10 gateway speaks HSFZ on port 6801." />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/discoverButton"
+                style="@style/Widget.Material3.Button.OutlinedButton"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:text="Find car on network" />
 
             <com.google.android.material.textfield.TextInputLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="8dp"
-                android:hint="Car / gateway IP">
+                android:hint="Gateway IP">
                 <com.google.android.material.textfield.TextInputEditText
                     android:id="@+id/ipInput"
                     android:layout_width="match_parent"
@@ -101,56 +134,113 @@
                     android:text="192.168.0.10" />
             </com.google.android.material.textfield.TextInputLayout>
 
-            <com.google.android.material.textfield.TextInputLayout
+            <com.google.android.material.button.MaterialButtonToggleGroup
+                android:id="@+id/protocolGroup"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:hint="Port">
-                <com.google.android.material.textfield.TextInputEditText
-                    android:id="@+id/portInput"
-                    android:layout_width="match_parent"
+                android:layout_marginTop="4dp"
+                app:checkedButton="@id/protoHsfz"
+                app:selectionRequired="true"
+                app:singleSelection="true">
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/protoHsfz"
+                    style="@style/Widget.Material3.Button.OutlinedButton"
+                    android:layout_width="0dp"
                     android:layout_height="wrap_content"
-                    android:inputType="number"
-                    android:text="13400" />
-            </com.google.android.material.textfield.TextInputLayout>
+                    android:layout_weight="1"
+                    android:text="HSFZ \u00b7 6801 (F10)" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/protoDoip"
+                    style="@style/Widget.Material3.Button.OutlinedButton"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="DoIP \u00b7 13400" />
+            </com.google.android.material.button.MaterialButtonToggleGroup>
 
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/enetButton"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
                 android:text="Connect over ENET" />
 
-            <!-- BLE -->
+            <!-- OBD adapters -->
             <TextView style="@style/CardTitle" android:layout_width="wrap_content"
                 android:layout_height="wrap_content" android:layout_marginTop="24dp"
-                android:text="Bluetooth OBD adapter" />
+                android:text="OBD adapter (Bluetooth, BLE or WiFi)" />
             <TextView style="@style/CardBody" android:layout_width="match_parent"
                 android:layout_height="wrap_content" android:layout_marginTop="2dp"
-                android:text="Scan for a BLE OBD dongle. Note: consumer BLE adapters connect and handshake only — module-addressed coding and diagnostics go through ENET or demo mode." />
+                android:text="ELM327/STN-based dongles (vLinker, OBDLink, UniCarScan, generic ELM327 v1.5). The app speaks BMW\u2019s extended-addressed UDS on the D-CAN bus, so coding and diagnostics both work. Slower than ENET; an STN-chip adapter is recommended for coding writes." />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btPairedButton"
+                style="@style/Widget.Material3.Button.OutlinedButton"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:text="Bluetooth \u2013 choose paired adapter" />
 
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/scanButton"
                 style="@style/Widget.Material3.Button.OutlinedButton"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="8dp"
+                android:layout_marginTop="4dp"
                 android:text="@string/scan_ble" />
 
             <androidx.recyclerview.widget.RecyclerView
                 android:id="@+id/bleList"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="8dp"
+                android:layout_marginTop="4dp"
                 android:nestedScrollingEnabled="false" />
 
-            <com.google.android.material.button.MaterialButton
-                android:id="@+id/disconnectButton"
-                style="@style/Widget.Material3.Button.TextButton"
+            <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="16dp"
-                android:text="@string/disconnect"
-                android:textColor="@color/status_error"
-                android:visibility="gone" />
+                android:layout_marginTop="8dp"
+                android:orientation="horizontal">
+
+                <com.google.android.material.textfield.TextInputLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="2"
+                    android:hint="WiFi adapter IP">
+                    <com.google.android.material.textfield.TextInputEditText
+                        android:id="@+id/wifiIpInput"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:inputType="text"
+                        android:text="192.168.0.10" />
+                </com.google.android.material.textfield.TextInputLayout>
+
+                <com.google.android.material.textfield.TextInputLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="8dp"
+                    android:layout_weight="1"
+                    android:hint="Port">
+                    <com.google.android.material.textfield.TextInputEditText
+                        android:id="@+id/wifiPortInput"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:inputType="number"
+                        android:text="35000" />
+                </com.google.android.material.textfield.TextInputLayout>
+            </LinearLayout>
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/wifiObdButton"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Connect WiFi OBD adapter" />
+
+            <TextView style="@style/CardBody" android:layout_width="match_parent"
+                android:layout_height="wrap_content" android:layout_marginTop="20dp"
+                android:text="Tip: keep the ignition on (engine off) for coding, and connect a battery charger for long sessions. The app backs up each coding block before writing and verifies every write by reading it back." />
         </LinearLayout>
     </androidx.core.widget.NestedScrollView>
 </androidx.coordinatorlayout.widget.CoordinatorLayout>

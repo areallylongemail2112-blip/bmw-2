@@ -22,8 +22,13 @@ object Doip {
     /** Hard cap so a corrupted length field cannot force an OOM. */
     const val MAX_PAYLOAD_LENGTH = 64 * 1024
 
+    const val TYPE_GENERIC_NACK = 0x0000
+    const val TYPE_VEHICLE_IDENT_REQ = 0x0001
+    const val TYPE_VEHICLE_ANNOUNCEMENT = 0x0004
     const val TYPE_ROUTING_ACTIVATION_REQ = 0x0005
     const val TYPE_ROUTING_ACTIVATION_RES = 0x0006
+    const val TYPE_ALIVE_CHECK_REQ = 0x0007
+    const val TYPE_ALIVE_CHECK_RES = 0x0008
     const val TYPE_DIAGNOSTIC_MESSAGE = 0x8001
     const val TYPE_DIAGNOSTIC_ACK = 0x8002
     const val TYPE_DIAGNOSTIC_NACK = 0x8003
@@ -50,6 +55,32 @@ object Doip {
             0x00, 0x00, 0x00, 0x00
         )
         return header(TYPE_ROUTING_ACTIVATION_REQ, payload.size) + payload
+    }
+
+    /** UDP vehicle identification request (broadcast to [PORT]); gateways answer with 0x0004. */
+    fun vehicleIdentificationRequest(): ByteArray = header(TYPE_VEHICLE_IDENT_REQ, 0)
+
+    /** Reply to a gateway alive check: our source address. */
+    fun aliveCheckResponse(sourceAddr: Int = TESTER_ADDRESS): ByteArray =
+        header(TYPE_ALIVE_CHECK_RES, 2) + byteArrayOf((sourceAddr shr 8).toByte(), sourceAddr.toByte())
+
+    /** VIN from a vehicle announcement payload (first 17 bytes), or null. */
+    fun vinFromAnnouncement(payload: ByteArray): String? {
+        if (payload.size < 17) return null
+        val vin = String(payload, 0, 17, Charsets.ISO_8859_1)
+        return if (vin.all { it.isLetterOrDigit() }) vin else null
+    }
+
+    /** Parses a complete datagram into a frame, or null when malformed. */
+    fun parse(bytes: ByteArray): Frame? {
+        if (bytes.size < 8) return null
+        val payloadType = ((bytes[2].toInt() and 0xFF) shl 8) or (bytes[3].toInt() and 0xFF)
+        val len = ((bytes[4].toInt() and 0xFF) shl 24) or
+            ((bytes[5].toInt() and 0xFF) shl 16) or
+            ((bytes[6].toInt() and 0xFF) shl 8) or
+            (bytes[7].toInt() and 0xFF)
+        if (len < 0 || 8 + len > bytes.size) return null
+        return Frame(payloadType, bytes.copyOfRange(8, 8 + len))
     }
 
     fun diagnosticMessage(source: Int, target: Int, uds: ByteArray): ByteArray {
