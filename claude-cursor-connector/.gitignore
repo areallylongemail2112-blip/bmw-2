@@ -1,0 +1,6 @@
+node_modules/
+dist/
+.env
+.oauth-store.json
+*.log
+coverage/
