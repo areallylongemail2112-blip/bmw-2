@@ -1,0 +1,41 @@
+{
+  "name": "claude-cursor-connector",
+  "version": "1.0.0",
+  "description": "Claude custom connector (remote MCP) that delegates coding work to Cursor agents",
+  "type": "module",
+  "bin": {
+    "claude-cursor-connector": "./dist/index.js"
+  },
+  "scripts": {
+    "dev": "tsx src/index.ts --http",
+    "start": "node dist/index.js --http",
+    "stdio": "node dist/index.js --stdio",
+    "build": "tsc -p tsconfig.json",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "engines": {
+    "node": ">=22.13.0"
+  },
+  "keywords": [
+    "claude",
+    "mcp",
+    "cursor",
+    "connector",
+    "agent"
+  ],
+  "license": "MIT",
+  "dependencies": {
+    "@cursor/sdk": "^1.0.30",
+    "@modelcontextprotocol/sdk": "^1.30.0",
+    "express": "^5.2.1",
+    "zod": "^4.5.4"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.6",
+    "@types/node": "^26.4.1",
+    "tsx": "^4.23.13",
+    "typescript": "^7.0.2",
+    "vitest": "^5.0.0"
+  }
+}
