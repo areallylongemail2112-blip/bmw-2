@@ -1,0 +1,59 @@
+# Packages tvtune.sh turns off on the TV (TCL 50S450G, Google TV, Android 11).
+#
+#   x  = turn off when you run the "apply" step
+#   -  = leave on (change the - to x if you don't use that feature)
+#
+# "Off" means `pm disable-user`: nothing is deleted, and the "restore" step turns
+# back on everything the script turned off. Packages that aren't on your TV are
+# skipped, so it's fine that this list covers more than one TCL firmware.
+#
+# Never add these. Community reports tie them to boot loops, lost HDMI/antenna
+# inputs, a dead remote, or a broken Wi-Fi setup:
+#   com.tcl.tv  com.tcl.tvinput  com.tcl.dashboard  com.tcl.systemserver
+#   com.tcl.system.server  com.tcl.suspension  com.tcl.autopair
+#   com.tcl.tcl_bt_rcu_service  com.tcl.initsetup  com.tcl.providers.config
+#   com.tcl.framework.custom  com.tcl.micmanager  com.tcl.factory.view
+#   com.tcl.waterfall.overseas  com.android.location.fused
+#   com.google.android.gms  com.android.vending  com.google.android.katniss
+#   com.google.android.tv.remote.service
+
+# --- TCL ads, promos, telemetry and store-demo apps --------------------------
+x  com.tcl.partnercustomizer               TCL ad/promo rows on the Google TV home screen
+x  com.tcl.tv.tclhome_passive              Pushes TCL content to the home screen at boot
+x  com.tcl.interactive                     TCL interactive-ad background service
+x  com.tcl.smartlink.core                  Silent background app installer
+x  com.tcl.bootadservice                   Ads inside TCL apps
+x  com.tcl.overseasappshow                 TCL app promotions
+x  com.tcl.bi                              TCL usage telemetry
+x  com.tcl.exhibit                         Retail store demo mode
+x  com.tcl.esticker                        Retail store feature stickers
+x  com.tcl.guard                           TCL "cleaner/antivirus" (runs in the background)
+x  com.tcl.tvweishi                        Background service for TCL Guard
+x  com.tcl.appmarket2                      TCL app store (Google Play stays)
+x  com.tcl.messagebox                      TCL message/notification box
+x  com.tcl.usercenter                      TCL account
+x  com.tcl.notereminder                    TCL notes and reminders
+x  com.tcl.ocean.instructions              On-screen e-manual
+x  com.tcl.repairguide                     Repair guide
+x  com.tcl.smartalexa                      Alexa control of the TV (change to - if you use Alexa)
+x  com.tcl.magiconnectfree                 TCL phone-to-TV app link
+x  android.autoinstalls.config.google.gtvpai   Re-installs promoted apps after updates
+x  android.autoinstalls.config.tcl.device      Re-installs promoted apps after updates
+
+# --- Google extras -----------------------------------------------------------
+x  com.google.android.feedback             Google feedback/crash reporting
+x  com.google.android.play.games           Google Play Games
+-  com.google.android.videos               Google TV / Play Movies purchases and library
+-  com.google.android.youtube.tvmusic      YouTube Music
+-  com.google.android.youtube.tvkids       YouTube Kids
+-  com.google.android.marvin.talkback      TalkBack screen reader
+-  com.google.android.apps.tv.dreamx       Ambient mode screensaver (screensaver is switched off with it)
+-  com.google.android.apps.mediashell      Chromecast built-in (casting from your phone)
+
+# --- TCL features you may or may not use -------------------------------------
+-  com.tcl.tv.plus                         TCL TV+ free channels app
+-  com.tcl.channelplus                     TCL free channels inside Live TV
+-  com.tcl.gallery                         Photo viewer
+-  com.tcl.ui_mediaCenter                  Plays videos/music/photos from a USB drive
+-  com.tcl.miracast                        Screen mirroring (Miracast) from a phone or PC
+-  com.tcl.gamebar                         Game-mode overlay for consoles
